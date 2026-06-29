@@ -15,7 +15,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """Create user schema"""
     password: str
-    role: Optional[str] = "customer"  # customer, admin, shipper
+    admin_code: Optional[str] = None
 
 
 class UserUpdate(BaseModel):
@@ -44,41 +44,140 @@ class UserRoleUpdate(BaseModel):
     role: str
 
 
+# ============= Category Schemas =============
+
+class CategoryBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class CategoryCreate(CategoryBase):
+    pass
+
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+class CategoryResponse(CategoryBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+# ============= Product Variant Schemas =============
+
+class ProductVariantBase(BaseModel):
+    size: str
+    color: str
+    stock_quantity: int = 0
+    additional_price: float = 0.0
+
+class ProductVariantCreate(ProductVariantBase):
+    pass # product_id will be handled by path or parent
+
+class ProductVariantUpdate(BaseModel):
+    size: Optional[str] = None
+    color: Optional[str] = None
+    stock_quantity: Optional[int] = None
+    additional_price: Optional[float] = None
+
+class ProductVariantResponse(ProductVariantBase):
+    id: int
+    product_id: int
+
+    class Config:
+        from_attributes = True
+
+
 # ============= Product Schemas =============
 
 class ProductBase(BaseModel):
-    """Base product schema"""
     name: str
     description: Optional[str] = None
-    price: float
-    quantity: int = 0
-    category: str = "General"
+    base_price: float
     image_url: Optional[str] = None
 
-
 class ProductCreate(ProductBase):
-    """Create product schema"""
-    pass
-
+    category_id: int
+    variants: List[ProductVariantCreate] = []
 
 class ProductUpdate(BaseModel):
-    """Update product schema"""
     name: Optional[str] = None
     description: Optional[str] = None
-    price: Optional[float] = None
-    quantity: Optional[int] = None
-    category: Optional[str] = None
+    base_price: Optional[float] = None
+    category_id: Optional[int] = None
     image_url: Optional[str] = None
     is_active: Optional[bool] = None
 
-
 class ProductResponse(ProductBase):
-    """Product response schema"""
     id: int
-    is_active: bool
+    category_id: int
     owner_id: int
+    is_active: bool
     created_at: datetime
     updated_at: datetime
+    variants: List[ProductVariantResponse] = []
+    category: Optional[CategoryResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ============= Cart Schemas =============
+
+class CartItemBase(BaseModel):
+    variant_id: int
+    quantity: int
+
+class CartItemCreate(CartItemBase):
+    pass
+
+class CartItemUpdate(BaseModel):
+    quantity: int
+
+class CartItemResponse(CartItemBase):
+    id: int
+    cart_id: int
+    variant: Optional[ProductVariantResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ProductCartSummary(BaseModel):
+    """Minimal product info for cart display"""
+    id: int
+    name: str
+    base_price: float
+    image_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CartItemDetailResponse(CartItemBase):
+    id: int
+    cart_id: int
+    variant: ProductVariantResponse
+    product: ProductCartSummary
+
+    class Config:
+        from_attributes = True
+
+
+class CartResponse(BaseModel):
+    id: int
+    user_id: int
+    items: List[CartItemResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class CartDetailResponse(BaseModel):
+    id: int
+    user_id: int
+    items: List[CartItemDetailResponse] = []
 
     class Config:
         from_attributes = True
@@ -88,14 +187,14 @@ class ProductResponse(ProductBase):
 
 class OrderItemBase(BaseModel):
     """Base order item schema"""
-    product_id: int
+    variant_id: int
     quantity: int
-    price: float
+    price_at_time: float
 
 
 class OrderItemCreate(BaseModel):
     """Create order item schema"""
-    product_id: int
+    variant_id: int
     quantity: int
 
 
@@ -103,6 +202,7 @@ class OrderItemResponse(OrderItemBase):
     """Order item response schema"""
     id: int
     order_id: int
+    variant: Optional[ProductVariantResponse] = None
 
     class Config:
         from_attributes = True
@@ -167,3 +267,25 @@ class RevenueChartItem(BaseModel):
     """Item for revenue chart"""
     month: str
     revenue: float
+
+
+# ============= AI Schemas =============
+
+class ChatRequest(BaseModel):
+    message: str
+    product_id: Optional[int] = None
+
+
+class ChatResponse(BaseModel):
+    reply: str
+
+
+class GenerateDescriptionRequest(BaseModel):
+    name: str
+    category: str
+    material: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class GenerateDescriptionResponse(BaseModel):
+    description: str

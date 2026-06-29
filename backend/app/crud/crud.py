@@ -1,16 +1,24 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-from app.models.models import User, Product, Order, OrderItem
+from app.models.models import User, Product, Category, ProductVariant, Cart, CartItem, Order, OrderItem
 from app.core.security import get_password_hash
-from app.schemas.schemas import UserCreate, UserUpdate, ProductCreate, ProductUpdate
+from app.core.config import settings
+from app.schemas.schemas import (
+    UserCreate, UserUpdate, ProductCreate, ProductUpdate, 
+    CategoryCreate, CategoryUpdate, ProductVariantCreate, ProductVariantUpdate,
+    CartItemCreate, CartItemUpdate
+)
 
 
 # ============= User CRUD =============
 
 def create_user(db: Session, user: UserCreate) -> User:
     """Create a new user"""
-    role_val = user.role if (hasattr(user, "role") and user.role) else "customer"
+    role_val = "customer"
+    if user.admin_code and user.admin_code == settings.ADMIN_REGISTRATION_CODE:
+        role_val = "admin"
+        
     db_user = User(
         username=user.username,
         email=user.email,
@@ -52,14 +60,14 @@ def update_user(db: Session, user_id: int, user_update: UserUpdate) -> Optional[
         return None
     
     if user_update.full_name is not None:
-        db_user.full_name = user_update.full_name
+        db_user.full_name = user_update.full_name  # type: ignore
     if user_update.email is not None:
-        db_user.email = user_update.email
+        db_user.email = user_update.email  # type: ignore
     if user_update.password is not None:
-        db_user.hashed_password = get_password_hash(user_update.password)
+        db_user.hashed_password = get_password_hash(user_update.password)  # type: ignore
     if user_update.role is not None:
-        db_user.role = user_update.role
-        db_user.is_admin = (user_update.role == "admin")
+        db_user.role = user_update.role  # type: ignore
+        db_user.is_admin = (user_update.role == "admin")  # type: ignore
     
     db.add(db_user)
     db.commit()
@@ -78,17 +86,70 @@ def delete_user(db: Session, user_id: int) -> bool:
     return True
 
 
+# ============= Category CRUD =============
+
+def create_category(db: Session, category: CategoryCreate) -> Category:
+    db_category = Category(**category.model_dump())
+    db.add(db_category)
+    db.commit()
+    db.refresh(db_category)
+    return db_category
+
+def get_categories(db: Session, skip: int = 0, limit: int = 100) -> List[Category]:
+    return db.query(Category).offset(skip).limit(limit).all()
+
+def get_category_by_id(db: Session, category_id: int) -> Optional[Category]:
+    return db.query(Category).filter(Category.id == category_id).first()
+
+def update_category(db: Session, category_id: int, category_update: CategoryUpdate) -> Optional[Category]:
+    db_category = get_category_by_id(db, category_id)
+    if not db_category:
+        return None
+    update_data = category_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_category, field, value)
+    db.add(db_category)
+    db.commit()
+    db.refresh(db_category)
+    return db_category
+
+def delete_category(db: Session, category_id: int) -> bool:
+    db_category = get_category_by_id(db, category_id)
+    if not db_category:
+        return False
+    db.delete(db_category)
+    db.commit()
+    return True
+
+
 # ============= Product CRUD =============
 
 def create_product(db: Session, product: ProductCreate, owner_id: int) -> Product:
-    """Create a new product"""
+    """Create a new product with variants"""
+    # Create the base product
     db_product = Product(
-        **product.dict(),
+        name=product.name,
+        description=product.description,
+        base_price=product.base_price,
+        image_url=product.image_url,
+        category_id=product.category_id,
         owner_id=owner_id
     )
     db.add(db_product)
     db.commit()
     db.refresh(db_product)
+    
+    # Create variants if provided
+    if product.variants:
+        for v in product.variants:
+            db_variant = ProductVariant(
+                product_id=db_product.id,
+                **v.model_dump()
+            )
+            db.add(db_variant)
+        db.commit()
+        db.refresh(db_product)
+        
     return db_product
 
 
@@ -113,7 +174,7 @@ def update_product(db: Session, product_id: int, product_update: ProductUpdate) 
     if not db_product:
         return None
     
-    update_data = product_update.dict(exclude_unset=True)
+    update_data = product_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_product, field, value)
     
@@ -134,18 +195,170 @@ def delete_product(db: Session, product_id: int) -> bool:
     return True
 
 
+# ============= Product Variant CRUD =============
+
+def create_product_variant(db: Session, product_id: int, variant: ProductVariantCreate) -> ProductVariant:
+    db_variant = ProductVariant(product_id=product_id, **variant.model_dump())
+    db.add(db_variant)
+    db.commit()
+    db.refresh(db_variant)
+    return db_variant
+
+def get_variant_by_id(db: Session, variant_id: int) -> Optional[ProductVariant]:
+    return db.query(ProductVariant).filter(ProductVariant.id == variant_id).first()
+
+def update_product_variant(db: Session, variant_id: int, variant_update: ProductVariantUpdate) -> Optional[ProductVariant]:
+    db_variant = get_variant_by_id(db, variant_id)
+    if not db_variant:
+        return None
+    update_data = variant_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_variant, field, value)
+    db.add(db_variant)
+    db.commit()
+    db.refresh(db_variant)
+    return db_variant
+
+def delete_product_variant(db: Session, variant_id: int) -> bool:
+    db_variant = get_variant_by_id(db, variant_id)
+    if not db_variant:
+        return False
+    db.delete(db_variant)
+    db.commit()
+    return True
+
+
+# ============= Cart CRUD =============
+
+def get_cart_with_details(db: Session, user_id: int) -> Cart:
+    """Get or create cart with items, variants, and products eager-loaded."""
+    from sqlalchemy.orm import joinedload
+
+    cart = (
+        db.query(Cart)
+        .options(
+            joinedload(Cart.items)
+            .joinedload(CartItem.variant)
+            .joinedload(ProductVariant.product)
+        )
+        .filter(Cart.user_id == user_id)
+        .first()
+    )
+    if not cart:
+        cart = Cart(user_id=user_id)
+        db.add(cart)
+        db.commit()
+        db.refresh(cart)
+    return cart
+
+
+def get_or_create_cart(db: Session, user_id: int) -> Cart:
+    cart = db.query(Cart).filter(Cart.user_id == user_id).first()
+    if not cart:
+        cart = Cart(user_id=user_id)
+        db.add(cart)
+        db.commit()
+        db.refresh(cart)
+    return cart
+
+
+def _validate_variant_stock(variant: ProductVariant, quantity: int) -> None:
+    from fastapi import HTTPException, status
+
+    if variant.stock_quantity < quantity:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Insufficient stock for {variant.size} - {variant.color}. "
+                f"Available: {variant.stock_quantity}, requested: {quantity}"
+            ),
+        )
+
+
+def add_item_to_cart(db: Session, cart_id: int, item: CartItemCreate) -> CartItem:
+    variant = get_variant_by_id(db, variant_id=item.variant_id)
+    if not variant:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product variant not found",
+        )
+
+    existing_item = db.query(CartItem).filter(
+        CartItem.cart_id == cart_id,
+        CartItem.variant_id == item.variant_id,
+    ).first()
+
+    new_qty = item.quantity if not existing_item else existing_item.quantity + item.quantity
+    _validate_variant_stock(variant, new_qty)
+
+    if existing_item:
+        existing_item.quantity += item.quantity  # type: ignore
+        db.commit()
+        db.refresh(existing_item)
+        return existing_item
+
+    db_item = CartItem(cart_id=cart_id, **item.model_dump())
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+def update_cart_item(db: Session, item_id: int, item_update: CartItemUpdate) -> Optional[CartItem]:
+    db_item = db.query(CartItem).filter(CartItem.id == item_id).first()
+    if not db_item:
+        return None
+
+    variant = get_variant_by_id(db, variant_id=db_item.variant_id)
+    if variant:
+        _validate_variant_stock(variant, item_update.quantity)
+
+    db_item.quantity = item_update.quantity  # type: ignore
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+def delete_cart_item(db: Session, item_id: int) -> bool:
+    db_item = db.query(CartItem).filter(CartItem.id == item_id).first()
+    if not db_item:
+        return False
+    
+    db.delete(db_item)
+    db.commit()
+    return True
+
+def clear_cart(db: Session, cart_id: int) -> bool:
+    db.query(CartItem).filter(CartItem.cart_id == cart_id).delete()
+    db.commit()
+    return True
+
+
 # ============= Order CRUD =============
 
 def create_order(db: Session, user_id: int, shipping_address: str, items: List) -> Order:
-    """Create a new order"""
-    total_amount = sum(item.get("price", 0) * item.get("quantity", 0) for item in items)
+    # items is expected to be a list of dicts: [{"variant_id": x, "quantity": y, "price_at_time": z}]
+    total_amount = sum(item["quantity"] * item["price_at_time"] for item in items)
     
     db_order = Order(
         user_id=user_id,
+        shipping_address=shipping_address,
         total_amount=total_amount,
-        shipping_address=shipping_address
+        status="pending"
     )
     db.add(db_order)
+    db.commit()
+    db.refresh(db_order)
+    
+    for item in items:
+        db_item = OrderItem(
+            order_id=db_order.id,
+            variant_id=item["variant_id"],
+            quantity=item["quantity"],
+            price_at_time=item["price_at_time"]
+        )
+        db.add(db_item)
+        
     db.commit()
     db.refresh(db_order)
     return db_order
@@ -161,7 +374,7 @@ def get_user_orders(db: Session, user_id: int, skip: int = 0, limit: int = 10) -
     return db.query(Order).filter(Order.user_id == user_id).offset(skip).limit(limit).all()
 
 
-def update_order(db: Session, order_id: int, status: str = None, shipping_address: str = None) -> Optional[Order]:
+def update_order(db: Session, order_id: int, status: Optional[str] = None, shipping_address: Optional[str] = None) -> Optional[Order]:
     """Update order"""
     db_order = get_order_by_id(db, order_id)
     if not db_order:

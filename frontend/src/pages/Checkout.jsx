@@ -47,7 +47,7 @@ const Checkout = () => {
 
     try {
       const orderItems = cart.map((item) => ({
-        product_id: item.product.id,
+        variant_id: item.variant.id,
         quantity: item.quantity,
       }));
 
@@ -233,19 +233,22 @@ const Checkout = () => {
             </Typography>
 
             <List disablePadding>
-              {cart.map((item) => (
-                <ListItem key={item.product.id} sx={{ px: 0, py: 1.5 }}>
+              {cart.map((item) => {
+                const itemPrice = item.product.base_price + (item.variant.additional_price || 0);
+                return (
+                <ListItem key={`${item.product.id}-${item.variant.id}`} sx={{ px: 0, py: 1.5 }}>
                   <ListItemText
                     primary={item.product.name}
-                    secondary={`Quantity: ${item.quantity}`}
+                    secondary={`${item.variant.size} - ${item.variant.color} | Qty: ${item.quantity}`}
                     primaryTypographyProps={{ color: "#fff", fontWeight: 600, fontSize: "0.95rem" }}
                     secondaryTypographyProps={{ color: "#94a3b8" }}
                   />
                   <Typography variant="body2" sx={{ color: "#fff", fontWeight: 700 }}>
-                    ${(item.product.price * item.quantity).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    ${(itemPrice * item.quantity).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </Typography>
                 </ListItem>
-              ))}
+                );
+              })}
             </List>
 
             <Divider sx={{ borderColor: "rgba(255,255,255,0.06)", my: 2 }} />

@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.api.v1 import auth, products, orders, admin, shipper
+from app.db.session import get_database_status
+from app.api.v1 import auth, products, categories, cart, orders, admin, shipper, ai
 
 # Create FastAPI app
 app = FastAPI(
@@ -24,16 +25,24 @@ app.add_middleware(
 # Include routers from API v1
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(products.router, prefix=settings.API_V1_STR)
+app.include_router(categories.router, prefix=settings.API_V1_STR)
+app.include_router(cart.router, prefix=settings.API_V1_STR)
 app.include_router(orders.router, prefix=settings.API_V1_STR)
 app.include_router(admin.router, prefix=settings.API_V1_STR)
 app.include_router(shipper.router, prefix=settings.API_V1_STR)
+app.include_router(ai.router, prefix=settings.API_V1_STR)
 
 
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {"status": "ok", "message": "Server is running"}
+    """Health check endpoint with database status"""
+    db_status = get_database_status()
+    return {
+        "status": "ok" if db_status.get("connected") else "degraded",
+        "message": "Server is running",
+        "database": db_status,
+    }
 
 
 # Root endpoint
@@ -55,10 +64,13 @@ async def api_info():
         "api_version": "v1",
         "endpoints": {
             "auth": f"{settings.API_V1_STR}/auth",
+            "categories": f"{settings.API_V1_STR}/categories",
             "products": f"{settings.API_V1_STR}/products",
+            "cart": f"{settings.API_V1_STR}/cart",
             "orders": f"{settings.API_V1_STR}/orders",
             "admin": f"{settings.API_V1_STR}/admin",
             "shipper": f"{settings.API_V1_STR}/shipper",
+            "ai": f"{settings.API_V1_STR}/ai",
         }
     }
 

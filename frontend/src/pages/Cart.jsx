@@ -82,8 +82,10 @@ const Cart = () => {
             }}
           >
             <List>
-              {cart.map((item, idx) => (
-                <Box key={item.product.id}>
+              {cart.map((item, idx) => {
+                const itemPrice = item.product.base_price + (item.variant.additional_price || 0);
+                return (
+                <Box key={`${item.product.id}-${item.variant.id}`}>
                   {idx > 0 && <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.05)", my: 2 }} />}
                   <ListItem
                     disableGutters
@@ -117,10 +119,10 @@ const Cart = () => {
                         {item.product.name}
                       </Typography>
                       <Typography variant="body2" sx={{ color: "#94a3b8", fontSize: "0.85rem", mb: 0.5 }}>
-                        Category: {item.product.category}
+                        Variant: {item.variant.size} - {item.variant.color}
                       </Typography>
                       <Typography variant="body2" sx={{ color: "#818cf8", fontWeight: 700 }}>
-                        ${item.product.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        ${itemPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                       </Typography>
                     </Box>
 
@@ -128,7 +130,7 @@ const Cart = () => {
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <IconButton
                         size="small"
-                        onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                        onClick={() => updateQuantity(item.variant.id, item.quantity - 1)}
                         sx={{ color: "#cbd5e1", border: "1px solid rgba(255, 255, 255, 0.1)", p: 0.5 }}
                       >
                         <RemoveIcon fontSize="small" />
@@ -138,7 +140,7 @@ const Cart = () => {
                       </Typography>
                       <IconButton
                         size="small"
-                        onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                        onClick={() => updateQuantity(item.variant.id, item.quantity + 1)}
                         sx={{ color: "#cbd5e1", border: "1px solid rgba(255, 255, 255, 0.1)", p: 0.5 }}
                       >
                         <AddIcon fontSize="small" />
@@ -148,15 +150,16 @@ const Cart = () => {
                     {/* Subtotal & Delete */}
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2, minWidth: { sm: 120 }, justifyContent: "space-between" }}>
                       <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#fff", ml: { sm: "auto" } }}>
-                        ${(item.product.price * item.quantity).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        ${(itemPrice * item.quantity).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                       </Typography>
-                      <IconButton onClick={() => removeFromCart(item.product.id)} sx={{ color: "#ef4444" }}>
+                      <IconButton onClick={() => removeFromCart(item.variant.id)} sx={{ color: "#ef4444" }}>
                         <DeleteOutlined />
                       </IconButton>
                     </Box>
                   </ListItem>
                 </Box>
-              ))}
+                );
+              })}
             </List>
           </Box>
         </Grid>

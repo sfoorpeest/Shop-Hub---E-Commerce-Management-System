@@ -26,6 +26,7 @@ const Register = () => {
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("customer");
+  const [adminCode, setAdminCode] = useState("");
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -41,7 +42,13 @@ const Register = () => {
     setError(null);
 
     try {
-      await register(username, email, password, role);
+      if (role === "admin" && !adminCode) {
+        setError("Admin registration code is required.");
+        setLoading(false);
+        return;
+      }
+      
+      await register(username, email, password, role === "admin" ? adminCode : "");
       setSuccess(true);
       setTimeout(() => {
         navigate("/login");
@@ -165,6 +172,19 @@ const Register = () => {
               <MenuItem value="admin">Administrator</MenuItem>
             </Select>
           </FormControl>
+
+          {role === "admin" && (
+            <TextField
+              required
+              fullWidth
+              label="Admin Registration Code"
+              type="password"
+              value={adminCode}
+              onChange={(e) => setAdminCode(e.target.value)}
+              variant="outlined"
+              sx={{ bgcolor: "rgba(15,23,42,0.25)", borderRadius: "8px" }}
+            />
+          )}
 
           <Button
             type="submit"

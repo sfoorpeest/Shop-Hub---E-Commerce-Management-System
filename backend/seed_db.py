@@ -1,207 +1,244 @@
 """
-Database seeding script
-Drops all existing tables, recreates them, and inserts realistic starter data.
+Database seeding script for Shop Hub (clothing e-commerce).
+Drops all tables, recreates them, and inserts starter data.
+
+Run: python seed_db.py
+Requires: DATABASE_URL in .env (or USE_SQLITE_FALLBACK=true)
 """
-from datetime import datetime, timedelta
-from app.db.session import engine, SessionLocal
+
+from datetime import datetime, timedelta, timezone
+
+from app.db.session import engine, SessionLocal, get_database_status
 from app.db.base import Base
-from app.models.models import User, Product, Order, OrderItem
+from app.models.models import (
+    User,
+    Category,
+    Product,
+    ProductVariant,
+    Cart,
+    CartItem,
+    Order,
+    OrderItem,
+)
 from app.core.security import get_password_hash
 
 
+def _variants(sizes, colors, stock=20, extra_price=0.0):
+    """Helper to generate size × color variant combinations."""
+    result = []
+    for size in sizes:
+        for color in colors:
+            result.append(
+                ProductVariant(
+                    size=size,
+                    color=color,
+                    stock_quantity=stock,
+                    additional_price=extra_price,
+                )
+            )
+    return result
+
+
 def seed_db():
-    print("Recreating database tables...")
-    # Drop all existing tables for a clean slate
+    status = get_database_status()
+    print(f"Seeding database ({status['backend']})...")
+
     Base.metadata.drop_all(bind=engine)
-    # Create all tables
     Base.metadata.create_all(bind=engine)
-    print("[OK] Tables created successfully.")
+    print("[OK] Tables recreated.")
 
     db = SessionLocal()
     try:
-        print("Seeding Users...")
-        # 1. Users
         password_hash = get_password_hash("password123")
-        
-        admin_user = User(
+
+        # --- Users ---
+        admin = User(
             username="admin",
             email="admin@shophub.com",
             hashed_password=password_hash,
             full_name="ShopHub Administrator",
             role="admin",
-            is_admin=True
+            is_admin=True,
         )
-        
-        customer_user = User(
+        customer = User(
             username="customer",
             email="customer@shophub.com",
             hashed_password=password_hash,
-            full_name="John Doe",
+            full_name="Nguyen Van A",
             role="customer",
-            is_admin=False
         )
-        
-        shipper_user = User(
+        shipper = User(
             username="shipper",
             email="shipper@shophub.com",
             hashed_password=password_hash,
-            full_name="Express Shipper",
+            full_name="Tran Shipper",
             role="shipper",
-            is_admin=False
         )
-        
-        db.add_all([admin_user, customer_user, shipper_user])
+        db.add_all([admin, customer, shipper])
         db.commit()
-        db.refresh(admin_user)
-        db.refresh(customer_user)
-        db.refresh(shipper_user)
-        print("[OK] Users seeded successfully.")
+        db.refresh(admin)
+        db.refresh(customer)
+        db.refresh(shipper)
+        print("[OK] Users: admin / customer / shipper (password: password123)")
 
-        print("Seeding Products...")
-        # 2. Products
-        products_data = [
+        # --- Categories ---
+        categories_data = [
+            ("Áo thun", "Áo thun nam nữ basic và oversize"),
+            ("Quần jean", "Quần jean slim, straight và baggy"),
+            ("Áo khoác", "Áo khoác hoodie, bomber và denim"),
+            ("Váy & Đầm", "Váy và đầm thời trang nữ"),
+            ("Phụ kiện", "Mũ, túi và phụ kiện thời trang"),
+        ]
+        categories = {}
+        for name, desc in categories_data:
+            cat = Category(name=name, description=desc)
+            db.add(cat)
+            db.flush()
+            categories[name] = cat
+        db.commit()
+        print(f"[OK] Categories: {len(categories_data)}")
+
+        # --- Products (clothing) ---
+        products_spec = [
             {
-                "name": "iPhone 15 Pro",
-                "description": "Titanium design, A17 Pro chip, customisable Action button, and a powerful 48MP main camera.",
-                "price": 999.00,
-                "quantity": 12,
-                "category": "Electronics",
-                "image_url": "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=500&auto=format&fit=crop"
+                "name": "Áo Thun Cotton Basic",
+                "description": "Áo thun 100% cotton thoáng mát, form regular fit. Phù hợp đi làm và dạo phố.",
+                "base_price": 199000,
+                "category": "Áo thun",
+                "image_url": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&auto=format&fit=crop",
+                "variants": _variants(["S", "M", "L", "XL"], ["Trắng", "Đen", "Xám"], stock=25),
             },
             {
-                "name": "Sony WH-1000XM5",
-                "description": "Industry-leading noise cancelling wireless headphones with premium sound quality and smart listening controls.",
-                "price": 349.99,
-                "quantity": 18,
-                "category": "Electronics",
-                "image_url": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop"
+                "name": "Áo Thun Oversize Street",
+                "description": "Áo oversize phong cách streetwear, chất liệu cotton pha co giãn nhẹ.",
+                "base_price": 249000,
+                "category": "Áo thun",
+                "image_url": "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=600&auto=format&fit=crop",
+                "variants": _variants(["M", "L", "XL", "XXL"], ["Đen", "Be", "Olive"], stock=18),
             },
             {
-                "name": "Nike Air Max Plus",
-                "description": "Give your attitude an edge with the Nike Air Max Plus, a Tuned Air experience that offers premium stability.",
-                "price": 179.99,
-                "quantity": 25,
-                "category": "Fashion",
-                "image_url": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop"
+                "name": "Quần Jean Slim Fit",
+                "description": "Quần jean co giãn, form slim ôm vừa phải. Màu indigo classic.",
+                "base_price": 449000,
+                "category": "Quần jean",
+                "image_url": "https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&auto=format&fit=crop",
+                "variants": _variants(["28", "30", "32", "34"], ["Indigo", "Đen"], stock=15),
             },
             {
-                "name": "Levi's 501 Original Jeans",
-                "description": "The original blue jean since 1873. Crafted in high-quality denim with straight fit and signature button fly.",
-                "price": 69.50,
-                "quantity": 30,
-                "category": "Fashion",
-                "image_url": "https://images.unsplash.com/photo-1542272604-787c3835535d?w=500&auto=format&fit=crop"
+                "name": "Quần Jean Baggy",
+                "description": "Quần jean baggy trend Gen-Z, ống rộng thoải mái.",
+                "base_price": 499000,
+                "category": "Quần jean",
+                "image_url": "https://images.unsplash.com/photo-1475178626620-a4d074967452?w=600&auto=format&fit=crop",
+                "variants": _variants(["28", "30", "32"], ["Xanh nhạt", "Đen"], stock=12, extra_price=20000),
             },
             {
-                "name": "Dyson V15 Detect Vacuum",
-                "description": "Powerful cordless vacuum cleaner with laser illumination that reveals invisible dust on hard floors.",
-                "price": 749.00,
-                "quantity": 8,
-                "category": "Home",
-                "image_url": "https://images.unsplash.com/photo-1558317374-067fb5f30001?w=500&auto=format&fit=crop"
+                "name": "Hoodie Unisex Fleece",
+                "description": "Áo hoodie nỉ bông ấm áp, có mũ trùm và túi kangaroo.",
+                "base_price": 399000,
+                "category": "Áo khoác",
+                "image_url": "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=600&auto=format&fit=crop",
+                "variants": _variants(["S", "M", "L", "XL"], ["Đen", "Xám", "Navy"], stock=20),
             },
             {
-                "name": "Nespresso Vertuo Next",
-                "description": "Elegant coffee and espresso maker that automatically adapts brewing parameters to each capsule size.",
-                "price": 199.00,
-                "quantity": 15,
-                "category": "Home",
-                "image_url": "https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=500&auto=format&fit=crop"
+                "name": "Áo Khoác Bomber",
+                "description": "Áo bomber phong cách pilot, chống gió nhẹ, lót polyester.",
+                "base_price": 599000,
+                "category": "Áo khoác",
+                "image_url": "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=600&auto=format&fit=crop",
+                "variants": _variants(["M", "L", "XL"], ["Đen", "Olive"], stock=10, extra_price=50000),
             },
             {
-                "name": "Designing Data-Intensive Applications",
-                "description": "The definitive guide to the system architectures of data processing and storage systems by Martin Kleppmann.",
-                "price": 45.00,
-                "quantity": 40,
-                "category": "Books",
-                "image_url": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500&auto=format&fit=crop"
+                "name": "Váy Midi Linen",
+                "description": "Váy midi chất liệu linen thoáng mát, tôn dáng thanh lịch.",
+                "base_price": 349000,
+                "category": "Váy & Đầm",
+                "image_url": "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600&auto=format&fit=crop",
+                "variants": _variants(["S", "M", "L"], ["Trắng", "Be", "Hồng pastel"], stock=14),
             },
             {
-                "name": "Atomic Habits",
-                "description": "An easy and proven way to build good habits and break bad ones, by world-renowned habits expert James Clear.",
-                "price": 16.99,
-                "quantity": 50,
-                "category": "Books",
-                "image_url": "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=500&auto=format&fit=crop"
-            }
+                "name": "Mũ Bucket Cotton",
+                "description": "Mũ bucket phong cách Hàn Quốc, chất liệu cotton cao cấp.",
+                "base_price": 129000,
+                "category": "Phụ kiện",
+                "image_url": "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=600&auto=format&fit=crop",
+                "variants": _variants(["Free"], ["Đen", "Be", "Kem"], stock=30),
+            },
         ]
 
-        products_list = []
-        for p in products_data:
-            db_product = Product(
-                name=p["name"],
-                description=p["description"],
-                price=p["price"],
-                quantity=p["quantity"],
-                category=p["category"],
-                image_url=p["image_url"],
-                owner_id=admin_user.id
+        products = []
+        first_variants = []
+        for spec in products_spec:
+            variants = spec.pop("variants")
+            cat_name = spec.pop("category")
+            product = Product(
+                **spec,
+                category_id=categories[cat_name].id,
+                owner_id=admin.id,
             )
-            db.add(db_product)
-            products_list.append(db_product)
-        
+            db.add(product)
+            db.flush()
+            for v in variants:
+                v.product_id = product.id
+                db.add(v)
+            first_variants.append(variants[0])
+            products.append(product)
         db.commit()
-        for p in products_list:
-            db.refresh(p)
-        print("[OK] Products seeded successfully.")
+        print(f"[OK] Products: {len(products)} (with size/color variants)")
 
-        print("Seeding Orders...")
-        # 3. Orders & Order Items
-        
-        # Order 1: Processing, unclaimed (Ready for shipper to claim)
+        # --- Sample orders ---
+        now = datetime.now(timezone.utc)
+        v0 = first_variants[0]
+        v2 = first_variants[2]
+        db.refresh(v0)
+        db.refresh(v2)
+
         order1 = Order(
-            user_id=customer_user.id,
-            total_amount=1044.00,
+            user_id=customer.id,
+            total_amount=products[0].base_price + v0.additional_price,
             status="processing",
-            shipping_address="123 Nguyen Trai Street, District 1, Ho Chi Minh City",
-            created_at=datetime.utcnow() - timedelta(hours=5)
+            shipping_address="123 Nguyễn Trãi, Quận 1, TP.HCM",
+            created_at=now - timedelta(hours=3),
         )
         db.add(order1)
         db.flush()
-        
-        item1_1 = OrderItem(order_id=order1.id, product_id=products_list[0].id, quantity=1, price=999.00) # iPhone
-        item1_2 = OrderItem(order_id=order1.id, product_id=products_list[6].id, quantity=1, price=45.00)  # DDIA Book
-        db.add_all([item1_1, item1_2])
-        
-        # Order 2: Claimed by shipper, currently shipping
+        db.add(
+            OrderItem(
+                order_id=order1.id,
+                variant_id=v0.id,
+                quantity=1,
+                price_at_time=products[0].base_price + v0.additional_price,
+            )
+        )
+
         order2 = Order(
-            user_id=customer_user.id,
-            total_amount=249.49,
+            user_id=customer.id,
+            total_amount=(products[2].base_price + v2.additional_price) * 2,
             status="shipping",
-            shipping_address="456 Le Loi Street, Hai Chau District, Da Nang City",
-            shipper_id=shipper_user.id,
-            created_at=datetime.utcnow() - timedelta(days=1)
+            shipping_address="456 Lê Lợi, Đà Nẵng",
+            shipper_id=shipper.id,
+            created_at=now - timedelta(days=1),
         )
         db.add(order2)
         db.flush()
-        
-        item2_1 = OrderItem(order_id=order2.id, product_id=products_list[2].id, quantity=1, price=179.99) # Nike
-        item2_2 = OrderItem(order_id=order2.id, product_id=products_list[3].id, quantity=1, price=69.50)  # Levi's
-        db.add_all([item2_1, item2_2])
-        
-        # Order 3: Delivered by shipper
-        order3 = Order(
-            user_id=customer_user.id,
-            total_amount=199.00,
-            status="delivered",
-            shipping_address="789 Tran Hung Dao Street, Hoan Kiem District, Hanoi",
-            shipper_id=shipper_user.id,
-            created_at=datetime.utcnow() - timedelta(days=3)
+        db.add(
+            OrderItem(
+                order_id=order2.id,
+                variant_id=v2.id,
+                quantity=2,
+                price_at_time=products[2].base_price + v2.additional_price,
+            )
         )
-        db.add(order3)
-        db.flush()
-        
-        item3_1 = OrderItem(order_id=order3.id, product_id=products_list[5].id, quantity=1, price=199.00) # Nespresso
-        db.add_all([item3_1])
-        
+
         db.commit()
-        print("[OK] Orders seeded successfully.")
-        print("\nAll data seeded successfully! You are ready to run the project.")
+        print("[OK] Sample orders seeded.")
+        print("\n=== Seed complete! ===")
+        print("Login: customer / password123  |  admin / password123")
 
     except Exception as e:
         db.rollback()
-        print(f"Error seeding database: {e}")
-        raise e
+        print(f"[ERROR] Seeding failed: {e}")
+        raise
     finally:
         db.close()
 

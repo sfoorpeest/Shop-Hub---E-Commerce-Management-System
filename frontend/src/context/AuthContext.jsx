@@ -1,8 +1,8 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 import axios from "axios";
 
-// Set base URL for API requests
-axios.defaults.baseURL = "http://localhost:8000";
+// Base URL is handled by Vite proxy in development
+// axios.defaults.baseURL = "http://localhost:8000";
 
 const AuthContext = createContext(null);
 
@@ -70,14 +70,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (username, email, password, role = "customer") => {
+  const register = async (username, email, password, admin_code = "") => {
     try {
-      const response = await axios.post("/api/v1/auth/register", {
+      const payload = {
         username,
         email,
         password,
-        role,
-      });
+      };
+      if (admin_code) {
+        payload.admin_code = admin_code;
+      }
+      const response = await axios.post("/api/v1/auth/register", payload);
       return response.data;
     } catch (error) {
       console.error("Registration error:", error);

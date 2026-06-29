@@ -1,26 +1,49 @@
 """
-Database initialization script
-Run this script to create all tables in the database
+Database initialization script.
+Creates all tables defined in SQLAlchemy models.
+Run: python init_db.py
 """
 
-from app.db.session import engine
+import logging
+from app.db.session import engine, get_database_status
 from app.db.base import Base
-from app.models.models import User, Product, Order, OrderItem
+
+# Import all models so metadata is registered
+from app.models.models import (  # noqa: F401
+    User,
+    Category,
+    Product,
+    ProductVariant,
+    Cart,
+    CartItem,
+    Order,
+    OrderItem,
+)
+
+logger = logging.getLogger(__name__)
+
+TABLES = [
+    "users",
+    "categories",
+    "products",
+    "product_variants",
+    "carts",
+    "cart_items",
+    "orders",
+    "order_items",
+]
 
 
 def init_db():
-    """Initialize database by creating all tables"""
+    status = get_database_status()
+    print(f"Database backend: {status['backend']}")
     print("Creating database tables...")
-    
-    # Create all tables
+
     Base.metadata.create_all(bind=engine)
-    
-    print("✓ Database tables created successfully!")
-    print("\nAvailable tables:")
-    print("  - users")
-    print("  - products")
-    print("  - orders")
-    print("  - order_items")
+
+    print("\n[OK] Tables created:")
+    for table in TABLES:
+        print(f"  - {table}")
 
 
 if __name__ == "__main__":

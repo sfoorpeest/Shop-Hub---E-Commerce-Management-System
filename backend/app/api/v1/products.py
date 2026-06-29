@@ -25,9 +25,13 @@ def read_products(
     """
     query = db.query(Product).filter(Product.is_active == True)
     
-    # Filter by category
-    if category and category != "All" and category.strip() != "":
-        query = query.filter(Product.category == category)
+    # Filter by category_id
+    if category and category.strip() != "":
+        try:
+            cat_id = int(category)
+            query = query.filter(Product.category_id == cat_id)
+        except ValueError:
+            pass
         
     # Text search on name or description
     if search and search.strip() != "":
@@ -40,9 +44,9 @@ def read_products(
     
     # Sorting
     if sort_by == "price_asc":
-        query = query.order_by(Product.price.asc())
+        query = query.order_by(Product.base_price.asc())
     elif sort_by == "price_desc":
-        query = query.order_by(Product.price.desc())
+        query = query.order_by(Product.base_price.desc())
     elif sort_by == "name_asc":
         query = query.order_by(Product.name.asc())
     elif sort_by == "name_desc":
@@ -85,7 +89,7 @@ def create_product(
     Create a new product (Admin only).
     """
     # Create product using admin's user ID as the owner
-    return crud.create_product(db, product=product_in, owner_id=current_admin.id)
+    return crud.create_product(db, product=product_in, owner_id=int(current_admin.id))  # type: ignore
 
 
 @router.put("/{product_id}", response_model=ProductResponse)

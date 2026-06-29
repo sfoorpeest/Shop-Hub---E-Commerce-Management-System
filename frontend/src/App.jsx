@@ -23,6 +23,7 @@ import Register from "./pages/Register";
 import Orders from "./pages/Orders";
 import AdminDashboard from "./pages/AdminDashboard";
 import ShipperDashboard from "./pages/ShipperDashboard";
+import ChatWidget from "./components/ChatWidget";
 
 // Custom theme mapping to match HSL curated palettes & dark slate aesthetic
 const darkTheme = createTheme({
@@ -170,6 +171,7 @@ function App() {
                 </Routes>
               </Box>
               <Footer />
+              <ChatWidget />
             </Box>
           </Router>
         </CartProvider>

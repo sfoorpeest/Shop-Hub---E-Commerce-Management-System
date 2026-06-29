@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.db.session import get_db
-from app.models.models import Order, OrderItem, Product, User
+from app.models.models import Order, OrderItem, Product, ProductVariant, User, Cart, CartItem
 from app.schemas.schemas import OrderCreate, OrderResponse
 from app.api.deps import get_current_active_user
 
@@ -18,7 +18,7 @@ def checkout(
 ):
     """
     Place a new order (Checkout).
-    Deducts stock from product quantities.
+    Deducts stock from product variant quantities.
     """
     if not order_in.items:
         raise HTTPException(
@@ -40,12 +40,20 @@ def checkout(
     
     # 2. Process order items and verify inventory
     for item in order_in.items:
-        product = db.query(Product).filter(Product.id == item.product_id).first()
+        variant = db.query(ProductVariant).filter(ProductVariant.id == item.variant_id).first()
+        if not variant:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Product Variant with ID {item.variant_id} not found"
+            )
+            
+        product = db.query(Product).filter(Product.id == variant.product_id).first()
         if not product:
             db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Product with ID {item.product_id} not found"
+                detail=f"Product for variant ID {item.variant_id} not found"
             )
             
         if not product.is_active:
@@ -55,26 +63,26 @@ def checkout(
                 detail=f"Product '{product.name}' is no longer active"
             )
             
-        if product.quantity < item.quantity:
+        if variant.stock_quantity < item.quantity:
             db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Insufficient stock for product '{product.name}'. Available: {product.quantity}, requested: {item.quantity}"
+                detail=f"Insufficient stock for variant '{variant.size} - {variant.color}'. Available: {variant.stock_quantity}, requested: {item.quantity}"
             )
             
         # Deduct inventory
-        product.quantity -= item.quantity
+        variant.stock_quantity -= item.quantity
         
         # Calculate item price and subtotal
-        item_price = product.price
+        item_price = product.base_price + variant.additional_price
         total_amount += item_price * item.quantity
         
         # Create order item record
         db_item = OrderItem(
             order_id=db_order.id,
-            product_id=product.id,
+            variant_id=variant.id,
             quantity=item.quantity,
-            price=item_price
+            price_at_time=item_price
         )
         db.add(db_item)
     
@@ -82,6 +90,12 @@ def checkout(
     db_order.total_amount = total_amount
     db.commit()
     db.refresh(db_order)
+    
+    # 4. Optional: Clear the user's cart after successful checkout
+    cart = db.query(Cart).filter(Cart.user_id == current_user.id).first()
+    if cart:
+        db.query(CartItem).filter(CartItem.cart_id == cart.id).delete()
+        db.commit()
     
     return db_order
 

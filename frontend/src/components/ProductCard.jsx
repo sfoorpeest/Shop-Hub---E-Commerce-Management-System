@@ -15,14 +15,9 @@ import ErrorOutlined from "@mui/icons-material/ErrorOutlined";
 import { useCart } from "../context/CartContext";
 
 const ProductCard = ({ product }) => {
-  const { addToCart } = useCart();
-  const isOutOfStock = product.quantity <= 0;
+  const isOutOfStock = !product.is_active || (product.variants && product.variants.every(v => v.stock_quantity <= 0));
 
-  const handleAddToCart = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    addToCart(product);
-  };
+  const totalStock = product.variants ? product.variants.reduce((acc, v) => acc + v.stock_quantity, 0) : 0;
 
   return (
     <Card
@@ -50,7 +45,7 @@ const ProductCard = ({ product }) => {
       {/* Category Chip */}
       <Box sx={{ position: "absolute", top: 12, left: 12, zIndex: 10 }}>
         <Chip
-          label={product.category}
+          label={product.category?.name || "General"}
           size="small"
           sx={{
             bgcolor: "rgba(15, 23, 42, 0.8)",
@@ -159,22 +154,20 @@ const ProductCard = ({ product }) => {
 
         <Box sx={{ mt: "auto", pt: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Typography variant="h6" sx={{ color: "#818cf8", fontWeight: 800 }}>
-            ${product.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            ${product.base_price?.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </Typography>
           <Typography variant="caption" sx={{ color: isOutOfStock ? "#ef4444" : "#10b981", fontWeight: 600 }}>
-            {isOutOfStock ? "Sold out" : `${product.quantity} in stock`}
+            {isOutOfStock ? "Sold out" : `${totalStock} in stock`}
           </Typography>
         </Box>
       </CardContent>
 
-      {/* Actions */}
       <CardActions sx={{ px: 2.5, pb: 2.5, pt: 0 }}>
         <Button
+          component={RouterLink}
+          to={`/products/${product.id}`}
           fullWidth
           variant="contained"
-          onClick={handleAddToCart}
-          disabled={isOutOfStock}
-          startIcon={<AddShoppingCart />}
           sx={{
             py: 1,
             borderRadius: "10px",
@@ -184,7 +177,7 @@ const ProductCard = ({ product }) => {
             "&:hover": { bgcolor: "#4f46e5" },
           }}
         >
-          Add to Cart
+          View Options
         </Button>
       </CardActions>
     </Card>

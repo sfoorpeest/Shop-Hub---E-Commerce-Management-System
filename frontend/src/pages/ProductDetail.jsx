@@ -10,6 +10,10 @@ import {
   Chip,
   CircularProgress,
   Divider,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
@@ -29,12 +33,16 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [quantity, setQuantity] = useState(1);
+  const [selectedVariantId, setSelectedVariantId] = useState("");
 
   useEffect(() => {
     const fetchProductDetails = async () => {
       try {
         const response = await axios.get(`/api/v1/products/${id}`);
         setProduct(response.data);
+        if (response.data.variants && response.data.variants.length > 0) {
+          setSelectedVariantId(response.data.variants[0].id);
+        }
       } catch (err) {
         console.error("Error fetching product details:", err);
         setError("Product not found or database is offline.");
@@ -45,8 +53,13 @@ const ProductDetail = () => {
     fetchProductDetails();
   }, [id]);
 
+  const selectedVariant = product?.variants?.find((v) => v.id === selectedVariantId);
+  const displayPrice = product ? (product.base_price + (selectedVariant?.additional_price || 0)) : 0;
+  const isOutOfStock = selectedVariant ? selectedVariant.stock_quantity <= 0 : true;
+  const stockLimit = selectedVariant ? selectedVariant.stock_quantity : 0;
+
   const handleIncrement = () => {
-    if (quantity < product.quantity) {
+    if (quantity < stockLimit) {
       setQuantity((prev) => prev + 1);
     }
   };
@@ -58,7 +71,9 @@ const ProductDetail = () => {
   };
 
   const handleAddToCart = () => {
-    addToCart(product, quantity);
+    if (product && selectedVariant) {
+      addToCart(product, selectedVariant, quantity);
+    }
   };
 
   if (loading) {
@@ -87,8 +102,6 @@ const ProductDetail = () => {
       </Container>
     );
   }
-
-  const isOutOfStock = product.quantity <= 0;
 
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
@@ -131,7 +144,7 @@ const ProductDetail = () => {
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
             <Box>
               <Chip
-                label={product.category}
+                label={product.category?.name || "General"}
                 sx={{
                   bgcolor: "rgba(99, 102, 241, 0.1)",
                   color: "#818cf8",
@@ -144,7 +157,7 @@ const ProductDetail = () => {
                 {product.name}
               </Typography>
               <Typography variant="h4" sx={{ color: "#818cf8", fontWeight: 800 }}>
-                ${product.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                ${displayPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </Typography>
             </Box>
 
@@ -159,7 +172,36 @@ const ProductDetail = () => {
               </Typography>
             </Box>
 
-            <Divider sx={{ borderColor: "rgba(255,255,255,0.06)" }} />
+            {product.variants && product.variants.length > 0 && (
+              <Box sx={{ mt: 2 }}>
+                <FormControl fullWidth>
+                  <InputLabel id="variant-select-label" sx={{ color: "#94a3b8" }}>Select Variant</InputLabel>
+                  <Select
+                    labelId="variant-select-label"
+                    value={selectedVariantId}
+                    label="Select Variant"
+                    onChange={(e) => {
+                      setSelectedVariantId(e.target.value);
+                      setQuantity(1); // Reset quantity when variant changes
+                    }}
+                    sx={{
+                      bgcolor: "rgba(15,23,42,0.25)",
+                      borderRadius: "8px",
+                      "& fieldset": { borderColor: "rgba(255,255,255,0.05)" },
+                      color: "#fff",
+                    }}
+                  >
+                    {product.variants.map((v) => (
+                      <MenuItem key={v.id} value={v.id} disabled={v.stock_quantity <= 0}>
+                        {v.size} - {v.color} {v.stock_quantity <= 0 ? "(Out of Stock)" : ""} {v.additional_price > 0 ? `(+$${v.additional_price})` : ""}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            )}
+
+            <Divider sx={{ borderColor: "rgba(255,255,255,0.06)", mt: 2 }} />
 
             {/* Inventory Status */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -174,14 +216,14 @@ const ProductDetail = () => {
                 <>
                   <CheckCircle sx={{ color: "#10b981" }} />
                   <Typography variant="body2" sx={{ color: "#10b981", fontWeight: 700 }}>
-                    In Stock ({product.quantity} units available)
+                    In Stock ({stockLimit} units available)
                   </Typography>
                 </>
               )}
             </Box>
 
             {/* Add to Cart Actions */}
-            {!isOutOfStock && (
+            {!isOutOfStock && selectedVariant && (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                   <Typography variant="body2" sx={{ color: "#94a3b8", fontWeight: 600 }}>
@@ -202,7 +244,7 @@ const ProductDetail = () => {
                     <Typography sx={{ px: 2, fontWeight: 700, minWidth: 20, textAlign: "center" }}>
                       {quantity}
                     </Typography>
-                    <IconButton size="small" onClick={handleIncrement} disabled={quantity >= product.quantity} sx={{ color: "#fff" }}>
+                    <IconButton size="small" onClick={handleIncrement} disabled={quantity >= stockLimit} sx={{ color: "#fff" }}>
                       <AddIcon fontSize="small" />
                     </IconButton>
                   </Box>

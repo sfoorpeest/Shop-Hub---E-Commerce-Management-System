@@ -198,11 +198,21 @@ class OrderItemCreate(BaseModel):
     quantity: int
 
 
+class ProductVariantInOrder(BaseModel):
+    id: int
+    size: str
+    color: str
+    product: ProductCartSummary
+
+    class Config:
+        from_attributes = True
+
+
 class OrderItemResponse(OrderItemBase):
     """Order item response schema"""
     id: int
     order_id: int
-    variant: Optional[ProductVariantResponse] = None
+    variant: Optional[ProductVariantInOrder] = None
 
     class Config:
         from_attributes = True
@@ -213,11 +223,15 @@ class OrderBase(BaseModel):
     total_amount: float
     status: str = "pending"
     shipping_address: str
+    payment_method: str = "COD"
+    payment_status: str = "unpaid"
+    payment_id: Optional[str] = None
 
 
 class OrderCreate(BaseModel):
     """Create order schema"""
     shipping_address: str
+    payment_method: str = "COD"
     items: List[OrderItemCreate]
 
 
@@ -225,6 +239,8 @@ class OrderUpdate(BaseModel):
     """Update order schema"""
     status: Optional[str] = None
     shipping_address: Optional[str] = None
+    payment_status: Optional[str] = None
+    payment_id: Optional[str] = None
 
 
 class OrderResponse(OrderBase):
@@ -234,7 +250,7 @@ class OrderResponse(OrderBase):
     shipper_id: Optional[int] = None
     items: List[OrderItemResponse]
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

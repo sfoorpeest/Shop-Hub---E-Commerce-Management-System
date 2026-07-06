@@ -151,30 +151,64 @@ const Orders = () => {
                 </AccordionSummary>
                 <AccordionDetails sx={{ px: 3, pb: 3, pt: 0 }}>
                   <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.06)", mb: 2 }} />
-                  <Typography variant="subtitle2" sx={{ color: "#94a3b8", mb: 1, fontWeight: 600 }}>
-                    Shipping Address
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: "#cbd5e1", mb: 3 }}>
-                    {order.shipping_address}
-                  </Typography>
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="subtitle2" sx={{ color: "#94a3b8", mb: 0.5, fontWeight: 600 }}>
+                        Shipping Address
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: "#cbd5e1" }}>
+                        {order.shipping_address}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="subtitle2" sx={{ color: "#94a3b8", mb: 0.5, fontWeight: 600 }}>
+                        Payment Method
+                      </Typography>
+                      <Chip
+                        label={order.payment_method === "BANK_TRANSFER" ? "VietQR / Bank" : "COD"}
+                        size="small"
+                        sx={{ bgcolor: "rgba(255,255,255,0.06)", color: "#fff", fontWeight: 600 }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="subtitle2" sx={{ color: "#94a3b8", mb: 0.5, fontWeight: 600 }}>
+                        Payment Status
+                      </Typography>
+                      <Chip
+                        label={order.payment_status.toUpperCase()}
+                        size="small"
+                        sx={{
+                          bgcolor: order.payment_status === "paid" ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
+                          color: order.payment_status === "paid" ? "#34d399" : "#fbbf24",
+                          border: order.payment_status === "paid" ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid rgba(245, 158, 11, 0.3)",
+                          fontWeight: 700,
+                          fontSize: "0.75rem",
+                        }}
+                      />
+                    </Grid>
+                  </Grid>
 
                   <Typography variant="subtitle2" sx={{ color: "#94a3b8", mb: 1.5, fontWeight: 600 }}>
                     Items Ordered
                   </Typography>
                   <List disablePadding>
-                    {order.items.map((item) => (
-                      <ListItem key={item.id} sx={{ px: 0, py: 1 }}>
-                        <ListItemText
-                          primary={`Product ID: ${item.product_id}`}
-                          secondary={`Quantity: ${item.quantity}`}
-                          primaryTypographyProps={{ color: "#fff", fontWeight: 500, fontSize: "0.9rem" }}
-                          secondaryTypographyProps={{ color: "#94a3b8" }}
-                        />
-                        <Typography variant="body2" sx={{ color: "#fff", fontWeight: 600 }}>
-                          ${(item.price * item.quantity).toFixed(2)}
-                        </Typography>
-                      </ListItem>
-                    ))}
+                    {order.items.map((item) => {
+                      const productName = item.variant?.product?.name || `Product Variant #${item.variant_id}`;
+                      const variantDetails = item.variant ? `Size: ${item.variant.size} - Color: ${item.variant.color}` : "";
+                      return (
+                        <ListItem key={item.id} sx={{ px: 0, py: 1.5 }}>
+                          <ListItemText
+                            primary={productName}
+                            secondary={`${variantDetails} | Qty: ${item.quantity}`}
+                            primaryTypographyProps={{ color: "#fff", fontWeight: 500, fontSize: "0.9rem" }}
+                            secondaryTypographyProps={{ color: "#94a3b8" }}
+                          />
+                          <Typography variant="body2" sx={{ color: "#fff", fontWeight: 600 }}>
+                            ${(item.price_at_time * item.quantity).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          </Typography>
+                        </ListItem>
+                      );
+                    })}
                   </List>
                 </AccordionDetails>
               </Accordion>

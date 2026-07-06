@@ -42,13 +42,14 @@ const Register = () => {
     setError(null);
 
     try {
-      if (role === "admin" && !adminCode) {
-        setError("Admin registration code is required.");
+      if ((role === "admin" || role === "shipper") && !adminCode) {
+        setError(`${role === "admin" ? "Admin" : "Shipper"} registration code is required.`);
         setLoading(false);
         return;
       }
       
-      await register(username, email, password, role === "admin" ? adminCode : "");
+      const codeToSend = (role === "admin" || role === "shipper") ? adminCode : "";
+      await register(username, email, password, codeToSend);
       setSuccess(true);
       setTimeout(() => {
         navigate("/login");
@@ -163,8 +164,30 @@ const Register = () => {
               sx={{
                 bgcolor: "rgba(15,23,42,0.25)",
                 borderRadius: "8px",
-                "& fieldset": { borderColor: "rgba(255,255,255,0.05)" },
+                "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
                 color: "#fff",
+                "& .MuiSvgIcon-root": { color: "#94a3b8" },
+              }}
+              MenuProps={{
+                PaperProps: {
+                  sx: {
+                    bgcolor: "#0f172a",
+                    color: "#f8fafc",
+                    border: "1px solid rgba(255, 255, 255, 0.15)",
+                    "& .MuiMenuItem-root": {
+                      fontSize: "0.95rem",
+                      fontWeight: 500,
+                      py: 1.5,
+                      "&:hover": {
+                        bgcolor: "rgba(99, 102, 241, 0.15)",
+                      },
+                      "&.Mui-selected": {
+                        bgcolor: "rgba(99, 102, 241, 0.25) !important",
+                        color: "#a5b4fc",
+                      },
+                    },
+                  },
+                },
               }}
             >
               <MenuItem value="customer">Customer (Standard User)</MenuItem>
@@ -173,11 +196,11 @@ const Register = () => {
             </Select>
           </FormControl>
 
-          {role === "admin" && (
+          {(role === "admin" || role === "shipper") && (
             <TextField
               required
               fullWidth
-              label="Admin Registration Code"
+              label={role === "admin" ? "Admin Registration Code" : "Shipper Registration Code"}
               type="password"
               value={adminCode}
               onChange={(e) => setAdminCode(e.target.value)}

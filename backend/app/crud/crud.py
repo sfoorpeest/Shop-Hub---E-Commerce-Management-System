@@ -16,8 +16,14 @@ from app.schemas.schemas import (
 def create_user(db: Session, user: UserCreate) -> User:
     """Create a new user"""
     role_val = "customer"
-    if user.admin_code and user.admin_code == settings.ADMIN_REGISTRATION_CODE:
-        role_val = "admin"
+    
+    if user.admin_code:
+        if user.admin_code == settings.ADMIN_REGISTRATION_CODE:
+            role_val = "admin"
+        elif user.admin_code == settings.SHIPPER_REGISTRATION_CODE:
+            role_val = "shipper"
+        else:
+            raise ValueError("Invalid registration code for the selected role")
         
     db_user = User(
         username=user.username,

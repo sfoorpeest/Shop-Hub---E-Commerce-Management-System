@@ -112,7 +112,11 @@ class Order(Base):
     status: Mapped[str] = mapped_column(String(20), default="pending")  # pending, processing, shipping, delivered, cancelled
     shipping_address: Mapped[str] = mapped_column(Text, nullable=False)
     shipper_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    payment_method: Mapped[str] = mapped_column(String(20), default="COD")  # COD, BANK_TRANSFER
+    payment_status: Mapped[str] = mapped_column(String(20), default="unpaid")  # unpaid, paid, failed
+    payment_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # Relationships
     user = relationship("User", back_populates="orders", foreign_keys=[user_id])

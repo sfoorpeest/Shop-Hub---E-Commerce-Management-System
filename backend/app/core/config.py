@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ALGORITHM: str = "HS256"
     ADMIN_REGISTRATION_CODE: str = "SECRET_ADMIN_CODE_123"
+    SHIPPER_REGISTRATION_CODE: str = "SECRET_SHIPPER_CODE_123"
 
     # Database — Supabase PostgreSQL connection string
     # Format: postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
@@ -83,3 +84,4 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+# Trigger reload

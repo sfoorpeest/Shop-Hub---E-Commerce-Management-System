@@ -36,7 +36,13 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         )
     
     # Create the user
-    new_user = crud.create_user(db, user=user_in)
+    try:
+        new_user = crud.create_user(db, user=user_in)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
     return new_user
 
 

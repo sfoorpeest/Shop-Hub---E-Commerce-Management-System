@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
+from datetime import datetime
 
 from app.db.session import get_db
 from app.models.models import Order, OrderItem, Product, ProductVariant, User, Cart, CartItem
@@ -27,11 +28,14 @@ def checkout(
         )
     
     # 1. Create order header
+    order_status = "pending" if order_in.payment_method == "BANK_TRANSFER" else "processing"
     db_order = Order(
         user_id=current_user.id,
         total_amount=0.0,
-        status="processing",  # Auto-approved/paid for demo purposes
-        shipping_address=order_in.shipping_address
+        status=order_status,
+        shipping_address=order_in.shipping_address,
+        payment_method=order_in.payment_method,
+        payment_status="unpaid"
     )
     db.add(db_order)
     db.flush()  # Generate order ID
@@ -141,4 +145,39 @@ def get_order_details(
             detail="Not authorized to view this order"
         )
         
+    return order
+
+
+@router.put("/{order_id}/pay", response_model=OrderResponse)
+def confirm_payment(
+    order_id: int,
+    payment_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Confirm payment for an order (Mock Payment confirmation).
+    Moves order from 'pending' status to 'processing' and sets payment_status to 'paid'.
+    """
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found"
+        )
+        
+    # Check permissions (only order owner or admin can trigger)
+    if order.user_id != current_user.id and current_user.role != "admin" and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to confirm payment for this order"
+        )
+        
+    order.payment_status = "paid"
+    order.payment_id = payment_id or f"MOCK_PAY_{int(datetime.now().timestamp())}"
+    if order.status == "pending":
+        order.status = "processing"
+        
+    db.commit()
+    db.refresh(order)
     return order

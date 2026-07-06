@@ -11,7 +11,8 @@ from app.schemas.schemas import (
     OrderResponse,
     DashboardStatsResponse,
     RevenueChartItem,
-    UserRoleUpdate
+    UserRoleUpdate,
+    OrderUpdate
 )
 from app.api.deps import get_current_admin
 from app.crud import crud
@@ -155,3 +156,38 @@ def update_user_role(
     db.refresh(user)
     
     return user
+
+
+@router.put("/orders/{order_id}", response_model=OrderResponse)
+def update_order_by_admin(
+    order_id: int,
+    order_update: OrderUpdate,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Update an order (Admin only).
+    """
+    order = crud.get_order_by_id(db, order_id=order_id)
+    if not order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found"
+        )
+        
+    updated_order = crud.update_order(
+        db, 
+        order_id=order_id, 
+        status=order_update.status, 
+        shipping_address=order_update.shipping_address
+    )
+    
+    if order_update.payment_status:
+        updated_order.payment_status = order_update.payment_status
+    if order_update.payment_id:
+        updated_order.payment_id = order_update.payment_id
+        
+    db.commit()
+    db.refresh(updated_order)
+    
+    return updated_order

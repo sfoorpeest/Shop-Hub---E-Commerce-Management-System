@@ -71,6 +71,10 @@ python init_db.py
 ### Development Mode
 
 ```bash
+.\venv\Scripts\uvicorn.exe app.main:app --reload
+
+.\venv\Scripts\Activate.ps1
+
 uvicorn app.main:app --reload
 ```
 

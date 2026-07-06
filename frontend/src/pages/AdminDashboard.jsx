@@ -53,6 +53,8 @@ const AdminDashboard = () => {
   const [chartData, setChartData] = useState([]);
   const [products, setProducts] = useState([]);
   const [users, setUsers] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -64,7 +66,7 @@ const AdminDashboard = () => {
     description: "",
     price: 0,
     quantity: 0,
-    category: "General",
+    category_id: "",
     image_url: "",
   });
 
@@ -87,6 +89,12 @@ const AdminDashboard = () => {
       // 4. Fetch Users
       const usersRes = await axios.get("/api/v1/admin/users");
       setUsers(usersRes.data);
+
+      const catRes = await axios.get("/api/v1/categories/");
+      setCategories(catRes.data);
+
+      const orderRes = await axios.get("/api/v1/admin/orders");
+      setOrders(orderRes.data);
     } catch (err) {
       console.error("Error loading dashboard data:", err);
       setError("Failed to load administration data. Verify you are logged in as Admin.");
@@ -111,7 +119,7 @@ const AdminDashboard = () => {
       description: "",
       price: "",
       quantity: "",
-      category: "General",
+      category_id: categories.length > 0 ? categories[0].id : "",
       image_url: "",
     });
     setProductModalOpen(true);
@@ -249,6 +257,7 @@ const AdminDashboard = () => {
         <Tabs value={tabIndex} onChange={handleTabChange} sx={{ "& .MuiTab-root": { color: "#94a3b8", fontWeight: 600 } }}>
           <Tab label="Analytics" />
           <Tab label="Products Manager" />
+          <Tab label="Orders Manager" />
           <Tab label="Users & Roles" />
         </Tabs>
       </Box>
@@ -327,9 +336,9 @@ const AdminDashboard = () => {
                   <TableRow key={prod.id} sx={{ "& td": { color: "#fff", borderColor: "rgba(255,255,255,0.03)" }, "&:hover": { bgcolor: "rgba(255,255,255,0.02)" } }}>
                     <TableCell>{prod.id}</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>{prod.name}</TableCell>
-                    <TableCell>{prod.category}</TableCell>
-                    <TableCell>${prod.price.toFixed(2)}</TableCell>
-                    <TableCell>{prod.quantity} units</TableCell>
+                    <TableCell>{prod.category ? prod.category.name : "N/A"}</TableCell>
+                    <TableCell>${prod.base_price ? prod.base_price.toFixed(2) : 0}</TableCell>
+                    <TableCell>{prod.variants && prod.variants.length > 0 ? prod.variants.reduce((acc, v) => acc + v.stock_quantity, 0) : 0} units</TableCell>
                     <TableCell align="right">
                       <IconButton onClick={() => handleOpenEditModal(prod)} sx={{ color: "#818cf8" }}>
                         <EditIcon size="small" />
@@ -346,8 +355,79 @@ const AdminDashboard = () => {
         </Box>
       )}
 
-      {/* Users Manager Tab */}
+      {/* Orders Manager Tab */}
       {tabIndex === 2 && (
+        <Box>
+          <Typography variant="h6" sx={{ color: "#fff", fontWeight: 700, mb: 3 }}>
+            Orders List
+          </Typography>
+
+          <TableContainer component={Paper} sx={{ bgcolor: "rgba(30, 41, 59, 0.4)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "16px", boxShadow: "none" }}>
+            <Table>
+              <TableHead>
+                <TableRow sx={{ "& th": { color: "#94a3b8", fontWeight: 600, borderColor: "rgba(255,255,255,0.06)" } }}>
+                  <TableCell>ID</TableCell>
+                  <TableCell>Customer ID</TableCell>
+                  <TableCell>Total Amount</TableCell>
+                  <TableCell>Payment Method</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {orders.map((ord) => (
+                  <TableRow key={ord.id} sx={{ "& td": { color: "#fff", borderColor: "rgba(255,255,255,0.03)" } }}>
+                    <TableCell>#{ord.id}</TableCell>
+                    <TableCell>{ord.user_id}</TableCell>
+                    <TableCell>${ord.total_amount.toFixed(2)}</TableCell>
+                    <TableCell>{ord.payment_method}</TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{
+                        color: ord.status === 'delivered' ? '#34d399' : (ord.status === 'cancelled' ? '#ef4444' : '#818cf8'),
+                        fontWeight: 600,
+                        textTransform: 'capitalize'
+                      }}>
+                        {ord.status}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <FormControl size="small" sx={{ minWidth: 120 }}>
+                        <Select
+                          value={ord.status}
+                          onChange={async (e) => {
+                            try {
+                              await axios.put(`/api/v1/admin/orders/${ord.id}`, { status: e.target.value });
+                              fetchData();
+                            } catch (err) {
+                              alert("Error updating order status.");
+                            }
+                          }}
+                          sx={{
+                            color: "#fff",
+                            bgcolor: "rgba(15,23,42,0.2)",
+                            "& fieldset": { borderColor: "rgba(255,255,255,0.08)" },
+                            fontWeight: 600,
+                          }}
+                        >
+                          <MenuItem value="pending">Pending</MenuItem>
+                          <MenuItem value="processing">Processing</MenuItem>
+                          <MenuItem value="shipping">Shipping</MenuItem>
+                          <MenuItem value="delivered">Delivered</MenuItem>
+                          <MenuItem value="cancelled">Cancelled</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+      )}
+
+      {/* Users Manager Tab */}
+      \n
+      {tabIndex === 3 && (
         <Box>
           <Typography variant="h6" sx={{ color: "#fff", fontWeight: 700, mb: 3 }}>
             User Accounts & Roles
@@ -461,16 +541,14 @@ const AdminDashboard = () => {
             <InputLabel id="dialog-cat-label" sx={{ color: "#94a3b8" }}>Category</InputLabel>
             <Select
               labelId="dialog-cat-label"
-              value={productForm.category}
+              value={productForm.category_id}
               label="Category"
-              onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
+              onChange={(e) => setProductForm({ ...productForm, category_id: e.target.value })}
               sx={{ color: "#fff", bgcolor: "rgba(15,23,42,0.25)" }}
             >
-              <MenuItem value="Electronics">Electronics</MenuItem>
-              <MenuItem value="Fashion">Fashion</MenuItem>
-              <MenuItem value="Home">Home</MenuItem>
-              <MenuItem value="Books">Books</MenuItem>
-              <MenuItem value="General">General</MenuItem>
+              {categories.map((cat) => (
+                <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
+              ))}
             </Select>
           </FormControl>
 

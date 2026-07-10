@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.db.session import get_database_status
+from app.db.session import get_database_status, ensure_order_columns
 from app.api.v1 import auth, products, categories, cart, orders, admin, shipper, ai
 
 # Create FastAPI app
@@ -32,6 +32,8 @@ app.include_router(admin.router, prefix=settings.API_V1_STR)
 app.include_router(shipper.router, prefix=settings.API_V1_STR)
 app.include_router(ai.router, prefix=settings.API_V1_STR)
 
+# Ensure order payment columns exist on startup so dashboard and orders work after rollback
+ensure_order_columns()
 
 # Health check endpoint
 @app.get("/health")

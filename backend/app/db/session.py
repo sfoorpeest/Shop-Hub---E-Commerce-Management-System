@@ -98,3 +98,33 @@ def get_database_status() -> dict:
         "connected": connected,
         "url_configured": bool(settings.DATABASE_URL),
     }
+
+
+def ensure_order_columns() -> None:
+    """Add missing payment columns to the orders table if needed."""
+    from sqlalchemy import inspect
+
+    inspector = inspect(engine)
+    if "orders" not in inspector.get_table_names():
+        return
+
+    existing_columns = {col["name"] for col in inspector.get_columns("orders")}
+    column_defs = {
+        "payment_method": "VARCHAR(20) DEFAULT 'COD'",
+        "payment_status": "VARCHAR(20) DEFAULT 'unpaid'",
+        "payment_id": "VARCHAR(100)"
+    }
+
+    missing_columns = [
+        (name, sql_type)
+        for name, sql_type in column_defs.items()
+        if name not in existing_columns
+    ]
+
+    if not missing_columns:
+        return
+
+    with engine.begin() as conn:
+        for column_name, sql_type in missing_columns:
+            conn.execute(text(f"ALTER TABLE orders ADD COLUMN {column_name} {sql_type}"))
+            print(f"[MIGRATION] Added missing column: {column_name}")

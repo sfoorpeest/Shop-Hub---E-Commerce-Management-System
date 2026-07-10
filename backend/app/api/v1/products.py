@@ -4,14 +4,14 @@ from typing import List, Optional
 
 from app.db.session import get_db
 from app.crud import crud
-from app.schemas.schemas import ProductCreate, ProductUpdate, ProductResponse
+from app.schemas.schemas import ProductCreate, ProductUpdate, ProductResponse, ProductListResponse
 from app.models.models import Product, User
 from app.api.deps import get_current_admin
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
 
-@router.get("/", response_model=dict)
+@router.get("/", response_model=ProductListResponse)
 def read_products(
     category: Optional[str] = None,
     search: Optional[str] = None,

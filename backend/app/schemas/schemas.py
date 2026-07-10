@@ -123,6 +123,13 @@ class ProductResponse(ProductBase):
         from_attributes = True
 
 
+class ProductListResponse(BaseModel):
+    items: List[ProductResponse]
+    total: int
+    skip: int
+    limit: int
+
+
 # ============= Cart Schemas =============
 
 class CartItemBase(BaseModel):

@@ -8,10 +8,10 @@ from app.schemas.schemas import ProductCreate, ProductUpdate, ProductResponse, P
 from app.models.models import Product, User
 from app.api.deps import get_current_admin
 
-router = APIRouter(prefix="/products", tags=["Products"])
+router = APIRouter(prefix="/products", tags=["Products"], redirect_slashes=False)
 
 
-@router.get("/", response_model=ProductListResponse)
+@router.get("", response_model=ProductListResponse)
 def read_products(
     category: Optional[str] = None,
     search: Optional[str] = None,
@@ -79,7 +79,7 @@ def read_product(product_id: int, db: Session = Depends(get_db)):
     return product
 
 
-@router.post("/", response_model=ProductResponse)
+@router.post("", response_model=ProductResponse)
 def create_product(
     product_in: ProductCreate,
     db: Session = Depends(get_db),

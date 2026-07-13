@@ -12,7 +12,7 @@ from app.schemas.schemas import (
 )
 from app.services import gemini as gemini_service
 
-router = APIRouter(prefix="/ai", tags=["AI"])
+router = APIRouter(prefix="/ai", tags=["AI"], redirect_slashes=False)
 
 
 @router.post("/chat", response_model=ChatResponse)

@@ -17,7 +17,7 @@ from app.schemas.schemas import (
 from app.api.deps import get_current_admin
 from app.crud import crud
 
-router = APIRouter(prefix="/admin", tags=["Admin Dashboard"])
+router = APIRouter(prefix="/admin", tags=["Admin Dashboard"], redirect_slashes=False)
 
 
 @router.get("/dashboard/stats", response_model=DashboardStatsResponse)

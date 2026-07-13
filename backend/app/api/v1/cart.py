@@ -12,7 +12,7 @@ from app.schemas.schemas import (
 from app.api.deps import get_current_user
 from app.models.models import User, CartItem
 
-router = APIRouter(prefix="/cart", tags=["Cart"])
+router = APIRouter(prefix="/cart", tags=["Cart"], redirect_slashes=False)
 
 
 def _build_cart_detail(cart) -> dict:

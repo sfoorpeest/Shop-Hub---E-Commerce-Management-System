@@ -11,7 +11,7 @@ from app.schemas.schemas import UserCreate, UserResponse, Token
 from app.api.deps import get_current_active_user
 from app.models.models import User
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(prefix="/auth", tags=["Authentication"], redirect_slashes=False)
 
 
 @router.post("/register", response_model=UserResponse)

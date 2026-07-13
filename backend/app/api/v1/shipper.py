@@ -7,7 +7,7 @@ from app.models.models import Order, User
 from app.schemas.schemas import OrderResponse
 from app.api.deps import get_current_shipper
 
-router = APIRouter(prefix="/shipper", tags=["Shipper Module"])
+router = APIRouter(prefix="/shipper", tags=["Shipper Module"], redirect_slashes=False)
 
 
 @router.get("/available-orders", response_model=List[OrderResponse])

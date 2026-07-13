@@ -8,10 +8,10 @@ from app.models.models import Order, OrderItem, Product, ProductVariant, User, C
 from app.schemas.schemas import OrderCreate, OrderResponse
 from app.api.deps import get_current_active_user
 
-router = APIRouter(prefix="/orders", tags=["Orders"])
+router = APIRouter(prefix="/orders", tags=["Orders"], redirect_slashes=False)
 
 
-@router.post("/", response_model=OrderResponse)
+@router.post("", response_model=OrderResponse)
 def checkout(
     order_in: OrderCreate,
     db: Session = Depends(get_db),

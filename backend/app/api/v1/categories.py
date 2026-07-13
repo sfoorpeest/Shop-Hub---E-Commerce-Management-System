@@ -7,7 +7,7 @@ from app.crud import crud
 from app.schemas.schemas import CategoryCreate, CategoryUpdate, CategoryResponse
 from app.api.deps import get_current_admin
 
-router = APIRouter(prefix="/categories", tags=["Categories"])
+router = APIRouter(prefix="/categories", tags=["Categories"], redirect_slashes=False)
 
 
 @router.post("/", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)

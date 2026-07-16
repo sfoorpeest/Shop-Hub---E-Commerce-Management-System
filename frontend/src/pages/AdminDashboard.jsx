@@ -162,7 +162,7 @@ const AdminDashboard = () => {
         await axios.put(`/api/v1/products/${selectedProduct.id}`, payload);
       } else {
         // Create Mode
-        await axios.post("/api/v1/products/", payload);
+        await axios.post("/api/v1/products", payload);
       }
 
       handleCloseProductModal();

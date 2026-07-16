@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
+import logging
 
 from app.db.session import get_db
 from app.crud import crud
@@ -13,6 +14,7 @@ from app.api.deps import get_current_user
 from app.models.models import User, CartItem
 
 router = APIRouter(prefix="/cart", tags=["Cart"], redirect_slashes=False)
+logger = logging.getLogger("ShopHub.Cart")
 
 
 def _build_cart_detail(cart) -> dict:
@@ -51,7 +53,7 @@ def get_cart(
     return _build_cart_detail(cart)
 
 
-@router.post("/items", response_model=CartItemResponse)
+@router.post("/items", response_model=CartItemResponse, status_code=status.HTTP_201_CREATED)
 def add_item_to_cart(
     item_in: CartItemCreate,
     current_user: User = Depends(get_current_user),
@@ -94,7 +96,7 @@ def update_cart_item(
     return updated_item
 
 
-@router.delete("/items/{item_id}")
+@router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 def delete_cart_item(
     item_id: int,
     current_user: User = Depends(get_current_user),
@@ -115,10 +117,11 @@ def delete_cart_item(
         )
 
     crud.delete_cart_item(db, item_id=item_id)
-    return {"message": "Item removed from cart"}
+    logger.info("User %s deleted cart item %s", current_user.username, item_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.delete("/")
+@router.delete("/", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 def clear_cart(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -126,4 +129,5 @@ def clear_cart(
     """Clear all items from the cart."""
     cart = crud.get_or_create_cart(db, user_id=current_user.id)
     crud.clear_cart(db, cart_id=cart.id)
-    return {"message": "Cart cleared successfully"}
+    logger.info("User %s cleared their cart", current_user.username)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

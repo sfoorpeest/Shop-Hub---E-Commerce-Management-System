@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status, Response
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
+import logging
 
 from app.db.session import get_db
 from app.crud import crud
@@ -9,6 +10,7 @@ from app.models.models import Product, User
 from app.api.deps import get_current_admin
 
 router = APIRouter(prefix="/products", tags=["Products"], redirect_slashes=False)
+logger = logging.getLogger("ShopHub.Products")
 
 
 @router.get("", response_model=ProductListResponse)
@@ -55,7 +57,10 @@ def read_products(
         # Default sort by newest
         query = query.order_by(Product.id.desc())
         
-    items = query.offset(skip).limit(limit).all()
+    items = query.options(
+        joinedload(Product.variants),
+        joinedload(Product.category)
+    ).offset(skip).limit(limit).all()
     
     return {
         "items": items,
@@ -79,7 +84,7 @@ def read_product(product_id: int, db: Session = Depends(get_db)):
     return product
 
 
-@router.post("", response_model=ProductResponse)
+@router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 def create_product(
     product_in: ProductCreate,
     db: Session = Depends(get_db),
@@ -114,7 +119,7 @@ def update_product(
     return updated_product
 
 
-@router.delete("/{product_id}")
+@router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 def delete_product(
     product_id: int,
     db: Session = Depends(get_db),
@@ -131,4 +136,5 @@ def delete_product(
         )
     
     crud.delete_product(db, product_id=product_id)
-    return {"message": "Product deleted successfully", "id": product_id}
+    logger.info("Product %s deleted successfully by admin %s", product_id, current_admin.username)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

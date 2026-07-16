@@ -63,7 +63,7 @@ const Checkout = () => {
         quantity: item.quantity,
       }));
 
-      const response = await axios.post("/api/v1/orders/", {
+      const response = await axios.post("/api/v1/orders", {
         shipping_address: fullShippingAddress,
         payment_method: paymentMethod,
         items: orderItems,

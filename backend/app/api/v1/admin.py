@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from datetime import datetime, timedelta
+import logging
 
 from app.db.session import get_db
-from app.models.models import User, Product, Order
+from app.models.models import User, Product, Order, OrderItem, ProductVariant
 from app.schemas.schemas import (
     UserResponse,
     OrderResponse,
@@ -18,6 +19,7 @@ from app.api.deps import get_current_admin
 from app.crud import crud
 
 router = APIRouter(prefix="/admin", tags=["Admin Dashboard"], redirect_slashes=False)
+logger = logging.getLogger("ShopHub.Admin")
 
 
 @router.get("/dashboard/stats", response_model=DashboardStatsResponse)
@@ -110,7 +112,9 @@ def list_all_orders(
     """
     List all orders in the system (Admin only).
     """
-    orders = db.query(Order).order_by(Order.id.desc()).all()
+    orders = db.query(Order).options(
+        joinedload(Order.items).joinedload(OrderItem.variant).joinedload(ProductVariant.product)
+    ).order_by(Order.id.desc()).all()
     return orders
 
 
@@ -155,6 +159,7 @@ def update_user_role(
     db.commit()
     db.refresh(user)
     
+    logger.info("Admin %s updated role of user %s to %s", current_admin.username, user.id, role_update.role)
     return user
 
 
@@ -190,4 +195,5 @@ def update_order_by_admin(
     db.commit()
     db.refresh(updated_order)
     
+    logger.info("Admin %s updated order %s", current_admin.username, updated_order.id)
     return updated_order

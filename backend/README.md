@@ -70,12 +70,19 @@ python init_db.py
 
 ### Development Mode
 
-```bash
-.\venv\Scripts\uvicorn.exe app.main:app --reload
+From the backend folder, use one of these commands:
 
+```powershell
+cd backend
 .\venv\Scripts\Activate.ps1
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
 
-uvicorn app.main:app --reload
+Or, without activating the environment:
+
+```powershell
+cd backend
+.\venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 Server will run on: `http://localhost:8000`

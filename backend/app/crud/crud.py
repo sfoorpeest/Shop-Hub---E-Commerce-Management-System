@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 
 from app.models.models import User, Product, Category, ProductVariant, Cart, CartItem, Order, OrderItem
@@ -161,17 +161,26 @@ def create_product(db: Session, product: ProductCreate, owner_id: int) -> Produc
 
 def get_product_by_id(db: Session, product_id: int) -> Optional[Product]:
     """Get product by ID"""
-    return db.query(Product).filter(Product.id == product_id).first()
+    return db.query(Product).options(
+        joinedload(Product.variants),
+        joinedload(Product.category)
+    ).filter(Product.id == product_id).first()
 
 
 def get_products(db: Session, skip: int = 0, limit: int = 10) -> List[Product]:
     """Get list of products"""
-    return db.query(Product).filter(Product.is_active == True).offset(skip).limit(limit).all()
+    return db.query(Product).options(
+        joinedload(Product.variants),
+        joinedload(Product.category)
+    ).filter(Product.is_active == True).offset(skip).limit(limit).all()
 
 
 def get_user_products(db: Session, owner_id: int, skip: int = 0, limit: int = 10) -> List[Product]:
     """Get products by owner"""
-    return db.query(Product).filter(Product.owner_id == owner_id).offset(skip).limit(limit).all()
+    return db.query(Product).options(
+        joinedload(Product.variants),
+        joinedload(Product.category)
+    ).filter(Product.owner_id == owner_id).offset(skip).limit(limit).all()
 
 
 def update_product(db: Session, product_id: int, product_update: ProductUpdate) -> Optional[Product]:
@@ -372,12 +381,16 @@ def create_order(db: Session, user_id: int, shipping_address: str, items: List) 
 
 def get_order_by_id(db: Session, order_id: int) -> Optional[Order]:
     """Get order by ID"""
-    return db.query(Order).filter(Order.id == order_id).first()
+    return db.query(Order).options(
+        joinedload(Order.items).joinedload(OrderItem.variant).joinedload(ProductVariant.product)
+    ).filter(Order.id == order_id).first()
 
 
 def get_user_orders(db: Session, user_id: int, skip: int = 0, limit: int = 10) -> List[Order]:
     """Get orders by user"""
-    return db.query(Order).filter(Order.user_id == user_id).offset(skip).limit(limit).all()
+    return db.query(Order).options(
+        joinedload(Order.items).joinedload(OrderItem.variant).joinedload(ProductVariant.product)
+    ).filter(Order.user_id == user_id).offset(skip).limit(limit).all()
 
 
 def update_order(db: Session, order_id: int, status: Optional[str] = None, shipping_address: Optional[str] = None) -> Optional[Order]:

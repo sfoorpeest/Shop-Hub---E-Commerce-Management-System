@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from datetime import datetime
+import logging
 
 from app.db.session import get_db
 from app.models.models import Order, OrderItem, Product, ProductVariant, User, Cart, CartItem
@@ -9,9 +10,10 @@ from app.schemas.schemas import OrderCreate, OrderResponse
 from app.api.deps import get_current_active_user
 
 router = APIRouter(prefix="/orders", tags=["Orders"], redirect_slashes=False)
+logger = logging.getLogger("ShopHub.Orders")
 
 
-@router.post("", response_model=OrderResponse)
+@router.post("", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 def checkout(
     order_in: OrderCreate,
     db: Session = Depends(get_db),
@@ -46,7 +48,7 @@ def checkout(
     for item in order_in.items:
         variant = db.query(ProductVariant).filter(ProductVariant.id == item.variant_id).first()
         if not variant:
-            db.rollback()
+            logger.warning("Checkout failed: Variant %s not found", item.variant_id)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Product Variant with ID {item.variant_id} not found"
@@ -54,21 +56,21 @@ def checkout(
             
         product = db.query(Product).filter(Product.id == variant.product_id).first()
         if not product:
-            db.rollback()
+            logger.warning("Checkout failed: Product for variant %s not found", item.variant_id)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Product for variant ID {item.variant_id} not found"
             )
             
         if not product.is_active:
-            db.rollback()
+            logger.warning("Checkout failed: Product %s is inactive", product.id)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Product '{product.name}' is no longer active"
             )
             
         if variant.stock_quantity < item.quantity:
-            db.rollback()
+            logger.warning("Checkout failed: Insufficient stock for variant %s", variant.id)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Insufficient stock for variant '{variant.size} - {variant.color}'. Available: {variant.stock_quantity}, requested: {item.quantity}"
@@ -101,6 +103,7 @@ def checkout(
         db.query(CartItem).filter(CartItem.cart_id == cart.id).delete()
         db.commit()
     
+    logger.info("Order %s created successfully by user %s", db_order.id, current_user.username)
     return db_order
 
 
@@ -112,7 +115,9 @@ def get_my_orders(
     """
     Get order history of the current user.
     """
-    orders = db.query(Order).filter(Order.user_id == current_user.id).order_by(Order.id.desc()).all()
+    orders = db.query(Order).options(
+        joinedload(Order.items).joinedload(OrderItem.variant).joinedload(ProductVariant.product)
+    ).filter(Order.user_id == current_user.id).order_by(Order.id.desc()).all()
     return orders
 
 
@@ -126,7 +131,9 @@ def get_order_details(
     Get details of a specific order.
     Customers can only view their own orders; admins/shippers can view any.
     """
-    order = db.query(Order).filter(Order.id == order_id).first()
+    order = db.query(Order).options(
+        joinedload(Order.items).joinedload(OrderItem.variant).joinedload(ProductVariant.product)
+    ).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -159,7 +166,9 @@ def confirm_payment(
     Confirm payment for an order (Mock Payment confirmation).
     Moves order from 'pending' status to 'processing' and sets payment_status to 'paid'.
     """
-    order = db.query(Order).filter(Order.id == order_id).first()
+    order = db.query(Order).options(
+        joinedload(Order.items).joinedload(OrderItem.variant).joinedload(ProductVariant.product)
+    ).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

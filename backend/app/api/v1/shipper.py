@@ -1,13 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
+import logging
 
 from app.db.session import get_db
-from app.models.models import Order, User
+from app.models.models import Order, User, OrderItem, ProductVariant
 from app.schemas.schemas import OrderResponse
 from app.api.deps import get_current_shipper
 
 router = APIRouter(prefix="/shipper", tags=["Shipper Module"], redirect_slashes=False)
+logger = logging.getLogger("ShopHub.Shipper")
 
 
 @router.get("/available-orders", response_model=List[OrderResponse])
@@ -18,7 +20,9 @@ def get_available_orders(
     """
     Get all orders that are processing and ready to be claimed for shipping.
     """
-    orders = db.query(Order).filter(
+    orders = db.query(Order).options(
+        joinedload(Order.items).joinedload(OrderItem.variant).joinedload(ProductVariant.product)
+    ).filter(
         Order.status == "processing",
         Order.shipper_id == None
     ).order_by(Order.id.asc()).all()
@@ -33,7 +37,9 @@ def get_my_deliveries(
     """
     Get all orders currently claimed by the logged-in shipper.
     """
-    orders = db.query(Order).filter(
+    orders = db.query(Order).options(
+        joinedload(Order.items).joinedload(OrderItem.variant).joinedload(ProductVariant.product)
+    ).filter(
         Order.shipper_id == current_shipper.id
     ).order_by(Order.id.desc()).all()
     return orders
@@ -72,6 +78,7 @@ def claim_order(
     db.commit()
     db.refresh(order)
     
+    logger.info("Shipper %s claimed order %s", current_shipper.username, order_id)
     return order
 
 
@@ -108,4 +115,5 @@ def deliver_order(
     db.commit()
     db.refresh(order)
     
+    logger.info("Shipper %s delivered order %s", current_shipper.username, order_id)
     return order

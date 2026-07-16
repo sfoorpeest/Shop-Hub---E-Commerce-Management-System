@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+import logging
 
 from app.db.session import get_db
 from app.api.deps import get_current_active_user, get_current_admin
@@ -13,6 +14,7 @@ from app.schemas.schemas import (
 from app.services import gemini as gemini_service
 
 router = APIRouter(prefix="/ai", tags=["AI"], redirect_slashes=False)
+logger = logging.getLogger("ShopHub.AI")
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -41,10 +43,13 @@ def ai_chat(
 
     try:
         reply = gemini_service.chat(body.message, product_context=product_context)
+        logger.info("User %s chatted with AI. Message length: %d", getattr(_current_user, "username", "unknown"), len(body.message))
         return ChatResponse(reply=reply)
     except ValueError as e:
+        logger.warning("AI Chat ValueError: %s", str(e))
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
     except Exception as e:
+        logger.error("AI Chat Exception: %s", str(e))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"AI service error: {str(e)}",
@@ -64,10 +69,13 @@ def generate_description(
             material=body.material,
             notes=body.notes,
         )
+        logger.info("Admin %s generated description for category %s", getattr(_current_admin, "username", "unknown"), body.category)
         return GenerateDescriptionResponse(description=description)
     except ValueError as e:
+        logger.warning("AI GenDesc ValueError: %s", str(e))
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
     except Exception as e:
+        logger.error("AI GenDesc Exception: %s", str(e))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"AI service error: {str(e)}",

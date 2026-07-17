@@ -23,6 +23,7 @@ import CheckCircle from "@mui/icons-material/CheckCircle";
 import Cancel from "@mui/icons-material/Cancel";
 import axios from "axios";
 import { useCart } from "../context/CartContext";
+import { formatVND } from "../utils/currency";
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -157,7 +158,7 @@ const ProductDetail = () => {
                 {product.name}
               </Typography>
               <Typography variant="h4" sx={{ color: "#818cf8", fontWeight: 800 }}>
-                ${displayPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {formatVND(displayPrice)}
               </Typography>
             </Box>
 

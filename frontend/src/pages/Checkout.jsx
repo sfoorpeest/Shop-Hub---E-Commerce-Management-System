@@ -24,6 +24,7 @@ import CheckCircle from "@mui/icons-material/CheckCircle";
 import axios from "axios";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
+import { formatVND } from "../utils/currency";
 
 const Checkout = () => {
   const { cart, cartTotal, clearCart } = useCart();
@@ -69,10 +70,26 @@ const Checkout = () => {
         items: orderItems,
       });
 
+      clearCart(); // Reset shopping cart immediately after order creation
+
+      if (paymentMethod === "VNPAY") {
+        try {
+          const vnpayRes = await axios.post(`/api/v1/payment/vnpay/create_url/${response.data.id}`);
+          if (vnpayRes.data && vnpayRes.data.payment_url) {
+            window.location.href = vnpayRes.data.payment_url;
+            return;
+          }
+        } catch (paymentErr) {
+          console.error("VNPay payment URL error:", paymentErr);
+          setError(paymentErr.response?.data?.detail || "Could not start VNPay payment. Please try again.");
+          setLoading(false);
+          return;
+        }
+      }
+
       setCreatedOrderId(response.data.id);
       setOrderAmount(response.data.total_amount);
       setSuccess(true);
-      clearCart(); // Reset shopping cart
     } catch (err) {
       console.error("Checkout order error:", err);
       setError(err.response?.data?.detail || "Checkout failed. Please check inventory levels.");
@@ -157,7 +174,7 @@ const Checkout = () => {
                   
                   <Typography variant="body2" sx={{ color: "#94a3b8" }}>Amount:</Typography>
                   <Typography variant="body2" sx={{ color: "#818cf8", fontWeight: 700, fontSize: "1.1rem" }}>
-                    ${orderAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  {formatVND(orderAmount)}
                   </Typography>
                   
                   <Typography variant="body2" sx={{ color: "#94a3b8" }}>Message:</Typography>
@@ -389,6 +406,20 @@ const Checkout = () => {
                     </Box>
                   }
                 />
+                <FormControlLabel
+                  value="VNPAY"
+                  control={<Radio sx={{ color: "#6366f1", '&.Mui-checked': { color: "#6366f1" } }} />}
+                  label={
+                    <Box>
+                      <Typography sx={{ color: "#fff", fontWeight: 600, fontSize: "0.95rem" }}>
+                        VNPay E-Wallet
+                      </Typography>
+                      <Typography sx={{ color: "#94a3b8", fontSize: "0.8rem" }}>
+                        Pay securely via VNPay Gateway (Sandbox)
+                      </Typography>
+                    </Box>
+                  }
+                />
               </RadioGroup>
             </FormControl>
 
@@ -438,7 +469,7 @@ const Checkout = () => {
                       secondaryTypographyProps={{ color: "#94a3b8" }}
                     />
                     <Typography variant="body2" sx={{ color: "#fff", fontWeight: 700 }}>
-                      ${(itemPrice * item.quantity).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      {formatVND(itemPrice * item.quantity)}
                     </Typography>
                   </ListItem>
                 );
@@ -450,7 +481,7 @@ const Checkout = () => {
             <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
               <Typography variant="body2" sx={{ color: "#94a3b8" }}>Items Total</Typography>
               <Typography variant="body2" sx={{ color: "#fff", fontWeight: 600 }}>
-                ${cartTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {formatVND(cartTotal)}
               </Typography>
             </Box>
 
@@ -464,7 +495,7 @@ const Checkout = () => {
             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
               <Typography variant="subtitle1" sx={{ color: "#fff", fontWeight: 700 }}>Final Total</Typography>
               <Typography variant="subtitle1" sx={{ color: "#818cf8", fontWeight: 800 }}>
-                ${cartTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {formatVND(cartTotal)}
               </Typography>
             </Box>
           </Card>

@@ -46,6 +46,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import axios from "axios";
+import { formatVND } from "../utils/currency";
 
 const AdminDashboard = () => {
   const [tabIndex, setTabIndex] = useState(0);
@@ -128,12 +129,16 @@ const AdminDashboard = () => {
   // Open Product Edit Modal
   const handleOpenEditModal = (product) => {
     setSelectedProduct(product);
+    
+    // Calculate total quantity from variants if available
+    const totalQuantity = product.variants ? product.variants.reduce((sum, v) => sum + (v.stock_quantity || 0), 0) : 0;
+
     setProductForm({
       name: product.name,
       description: product.description || "",
-      price: product.price,
-      quantity: product.quantity,
-      category: product.category,
+      price: product.base_price || 0,
+      quantity: totalQuantity,
+      category_id: product.category?.id || "",
       image_url: product.image_url || "",
     });
     setProductModalOpen(true);
@@ -151,9 +156,8 @@ const AdminDashboard = () => {
       const payload = {
         name: productForm.name,
         description: productForm.description,
-        price: parseFloat(productForm.price),
-        quantity: parseInt(productForm.quantity),
-        category: productForm.category,
+        base_price: parseFloat(productForm.price),
+        category_id: parseInt(productForm.category_id),
         image_url: productForm.image_url,
       };
 
@@ -162,6 +166,15 @@ const AdminDashboard = () => {
         await axios.put(`/api/v1/products/${selectedProduct.id}`, payload);
       } else {
         // Create Mode
+        // For new products, backend expects at least one variant for stock quantity
+        payload.variants = [
+          {
+            size: "Standard",
+            color: "Default",
+            stock_quantity: parseInt(productForm.quantity) || 0,
+            additional_price: 0
+          }
+        ];
         await axios.post("/api/v1/products", payload);
       }
 
@@ -218,7 +231,7 @@ const AdminDashboard = () => {
       {stats && (
         <Grid container spacing={3} sx={{ mb: 6 }}>
           {[
-            { label: "Total Revenue", val: `$${stats.total_revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, icon: <AttachMoney sx={{ fontSize: 24, color: "#10b981" }} />, border: "#10b981" },
+            { label: "Total Revenue", val: formatVND(stats.total_revenue), icon: <AttachMoney sx={{ fontSize: 24, color: "#10b981" }} />, border: "#10b981" },
             { label: "Total Orders", val: stats.total_orders, icon: <ShoppingBag sx={{ fontSize: 24, color: "#6366f1" }} />, border: "#6366f1" },
             { label: "Active Products", val: stats.total_products, icon: <Inventory sx={{ fontSize: 24, color: "#f59e0b" }} />, border: "#f59e0b" },
             { label: "Total Users", val: stats.total_users, icon: <People sx={{ fontSize: 24, color: "#ec4899" }} />, border: "#ec4899" }

@@ -13,6 +13,7 @@ import {
 import AddShoppingCart from "@mui/icons-material/AddShoppingCart";
 import ErrorOutlined from "@mui/icons-material/ErrorOutlined";
 import { useCart } from "../context/CartContext";
+import { formatVND } from "../utils/currency";
 
 const ProductCard = ({ product }) => {
   const isOutOfStock = !product.is_active || (product.variants && product.variants.every(v => v.stock_quantity <= 0));
@@ -154,7 +155,7 @@ const ProductCard = ({ product }) => {
 
         <Box sx={{ mt: "auto", pt: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Typography variant="h6" sx={{ color: "#818cf8", fontWeight: 800 }}>
-            ${product.base_price?.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {formatVND(product.base_price)}
           </Typography>
           <Typography variant="caption" sx={{ color: isOutOfStock ? "#ef4444" : "#10b981", fontWeight: 600 }}>
             {isOutOfStock ? "Sold out" : `${totalStock} in stock`}

@@ -20,6 +20,7 @@ import ArrowForward from "@mui/icons-material/ArrowForward";
 import ShoppingCartOutlined from "@mui/icons-material/ShoppingCartOutlined";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
+import { formatVND } from "../utils/currency";
 
 const Cart = () => {
   const { cart, updateQuantity, removeFromCart, cartTotal, cartCount } = useCart();
@@ -122,7 +123,7 @@ const Cart = () => {
                         Variant: {item.variant.size} - {item.variant.color}
                       </Typography>
                       <Typography variant="body2" sx={{ color: "#818cf8", fontWeight: 700 }}>
-                        ${itemPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        {formatVND(itemPrice)}
                       </Typography>
                     </Box>
 
@@ -150,7 +151,7 @@ const Cart = () => {
                     {/* Subtotal & Delete */}
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2, minWidth: { sm: 120 }, justifyContent: "space-between" }}>
                       <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#fff", ml: { sm: "auto" } }}>
-                        ${(itemPrice * item.quantity).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        {formatVND(itemPrice * item.quantity)}
                       </Typography>
                       <IconButton onClick={() => removeFromCart(item.variant.id)} sx={{ color: "#ef4444" }}>
                         <DeleteOutlined />
@@ -182,7 +183,7 @@ const Cart = () => {
             <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
               <Typography variant="body2" sx={{ color: "#94a3b8" }}>Subtotal</Typography>
               <Typography variant="body2" sx={{ color: "#fff", fontWeight: 600 }}>
-                ${cartTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {formatVND(cartTotal)}
               </Typography>
             </Box>
 
@@ -196,7 +197,7 @@ const Cart = () => {
             <Box sx={{ display: "flex", justifyContent: "space-between", mb: 4 }}>
               <Typography variant="subtitle1" sx={{ color: "#fff", fontWeight: 700 }}>Total</Typography>
               <Typography variant="subtitle1" sx={{ color: "#818cf8", fontWeight: 800 }}>
-                ${cartTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                {formatVND(cartTotal)}
               </Typography>
             </Box>
 

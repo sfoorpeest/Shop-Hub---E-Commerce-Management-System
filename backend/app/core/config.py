@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     # Gemini AI
     GEMINI_API_KEY: Optional[str] = None
     GEMINI_MODEL: str = "gemini-2.0-flash"
+    
+    # VNPay
+    VNPAY_TMN_CODE: Optional[str] = None
+    VNPAY_HASH_SECRET: Optional[str] = None
+    VNPAY_PAYMENT_URL: Optional[str] = None
+    VNPAY_RETURN_URL: Optional[str] = None
 
     # CORS Settings
     BACKEND_CORS_ORIGINS: List[str] = [
@@ -69,7 +75,7 @@ class Settings(BaseSettings):
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
         if url.startswith("postgresql://") and "+psycopg" not in url:
-            url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+            url = url.replace("postgresql://", "postgresql+psycopg://", 1)
         return url
 
     # Server Settings

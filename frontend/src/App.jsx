@@ -23,6 +23,7 @@ import Register from "./pages/Register";
 import Orders from "./pages/Orders";
 import AdminDashboard from "./pages/AdminDashboard";
 import ShipperDashboard from "./pages/ShipperDashboard";
+import PaymentReturn from "./pages/PaymentReturn";
 import ChatWidget from "./components/ChatWidget";
 
 // Custom theme mapping to match HSL curated palettes & dark slate aesthetic
@@ -142,6 +143,14 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <Orders />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/payment-return"
+                    element={
+                      <ProtectedRoute>
+                        <PaymentReturn />
                       </ProtectedRoute>
                     }
                   />

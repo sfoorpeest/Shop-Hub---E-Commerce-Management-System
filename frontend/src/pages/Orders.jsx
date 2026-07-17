@@ -22,6 +22,7 @@ import LocalShippingOutlined from "@mui/icons-material/LocalShippingOutlined";
 import CheckCircle from "@mui/icons-material/CheckCircle";
 import HourglassEmpty from "@mui/icons-material/HourglassEmpty";
 import axios from "axios";
+import { formatVND } from "../utils/currency";
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
@@ -204,7 +205,7 @@ const Orders = () => {
                             secondaryTypographyProps={{ color: "#94a3b8" }}
                           />
                           <Typography variant="body2" sx={{ color: "#fff", fontWeight: 600 }}>
-                            ${(item.price_at_time * item.quantity).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                            {formatVND(item.price_at_time * item.quantity)}
                           </Typography>
                         </ListItem>
                       );

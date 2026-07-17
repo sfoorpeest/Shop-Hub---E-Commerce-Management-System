@@ -21,6 +21,7 @@ from app.api.v1 import (
     admin,
     shipper,
     ai,
+    payment,
 )
 
 # --------------------------------------------------------------------
@@ -117,6 +118,7 @@ app.include_router(orders.router, prefix=settings.API_V1_STR)
 app.include_router(admin.router, prefix=settings.API_V1_STR)
 app.include_router(shipper.router, prefix=settings.API_V1_STR)
 app.include_router(ai.router, prefix=settings.API_V1_STR)
+app.include_router(payment.router, prefix=settings.API_V1_STR)
 
 # --------------------------------------------------------------------
 # Endpoints

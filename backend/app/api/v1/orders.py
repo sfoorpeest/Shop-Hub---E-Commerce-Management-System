@@ -30,7 +30,7 @@ def checkout(
         )
     
     # 1. Create order header
-    order_status = "pending" if order_in.payment_method == "BANK_TRANSFER" else "processing"
+    order_status = "pending" if order_in.payment_method in {"BANK_TRANSFER", "VNPAY"} else "processing"
     db_order = Order(
         user_id=current_user.id,
         total_amount=0.0,
